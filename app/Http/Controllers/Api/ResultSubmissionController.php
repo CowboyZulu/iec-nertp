@@ -54,10 +54,10 @@ class ResultSubmissionController extends Controller
             'candidate_votes' => ['required', 'array', 'min:1'],
             'candidate_votes.*.candidate_id' => ['required', 'exists:candidates,id'],
             'candidate_votes.*.votes' => ['required', 'integer', 'min:0'],
-            'result_sheet_photo' => ['required', 'image', 'max:10240'], // 10MB max
-            'submitted_latitude' => ['required', 'numeric'],
-            'submitted_longitude' => ['required', 'numeric'],
-            'gps_accuracy_meters' => ['nullable', 'numeric'],
+            'result_sheet_photo' => ['required', 'image', 'mimes:jpeg,png,jpg,webp', 'max:10240'], // 10MB max
+            'submitted_latitude' => ['required', 'numeric', 'between:-90,90'],
+            'submitted_longitude' => ['required', 'numeric', 'between:-180,180'],
+            'gps_accuracy_meters' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         // Check for duplicate submission (idempotency)
