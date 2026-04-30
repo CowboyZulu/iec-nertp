@@ -206,13 +206,14 @@ class ResultSubmissionController extends Controller
      */
     public function mySubmissions(Request $request): JsonResponse
     {
+        $perPage = (int) $request->integer('per_page', 20);
+        $perPage = max(1, min($perPage, 100));
+
         $results = Result::with(['pollingStation', 'candidateVotes.candidate'])
             ->where('submitted_by', $request->user()->id)
             ->orderByDesc('submitted_at')
-            ->get();
+            ->paginate($perPage);
 
-        return response()->json([
-            'results' => $results,
-        ]);
+        return response()->json($results);
     }
 }
