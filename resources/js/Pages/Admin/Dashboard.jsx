@@ -124,17 +124,7 @@ export default function AdminDashboard({ auth, statistics, systemStatus }) {
                                 Platform health, user coverage, station readiness, and election configuration at a glance.
                             </p>
                         </div>
-                        {can(user, 'manage-users') && can(user, 'assign-roles') ? (
-                            <Link
-                                href="/admin/users/create"
-                                className="inline-flex items-center gap-2 self-start rounded bg-iec-pink-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-iec-pink-700 active:bg-iec-pink-700 shrink-0"
-                            >
-                                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                    <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
-                                </svg>
-                                Create User
-                            </Link>
-                        ) : null}
+
                     </div>
                 </div>
 

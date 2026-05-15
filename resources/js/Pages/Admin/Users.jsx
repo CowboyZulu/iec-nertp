@@ -114,7 +114,7 @@ export default function Users({ auth, users = {}, filters = {} }) {
                 <PageHeader
                     title="User Management"
                     description={`${users.total ?? userData.length} users across all roles`}
-                    actions={canAssignRoles ? <Button href="/admin/users/create">Add New User</Button> : null}
+                    actions={<Button href="/admin/users/create">Add New User</Button>}
                 />
 
                 <form onSubmit={applyFilters}>
