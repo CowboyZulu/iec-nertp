@@ -38,6 +38,8 @@ export default function Users({ auth, users = {}, filters = {} }) {
         router.visit(`/admin/users/${id}/edit`);
     };
 
+    const handleEdit = (id) => router.visit(`/admin/users/${id}/edit`);
+
     const handleDelete = (user) => {
         if (!window.confirm(`Delete user "${user.name}"? This cannot be undone.`)) return;
         setDeletingId(user.id);
@@ -107,6 +109,14 @@ export default function Users({ auth, users = {}, filters = {} }) {
                     >
                         {deletingId === user.id ? 'Deleting...' : 'Delete'}
                     </Button>
+                    {canAssignRoles && (
+                        <Button onClick={() => handleEdit(user.id)} variant="secondary">Edit</Button>
+                    )}
+                    {canDeleteUsers && (
+                        <Button onClick={() => handleDelete(user)} disabled={deletingId === user.id || user.id === currentUser?.id} variant="danger">
+                            {deletingId === user.id ? 'Deleting...' : 'Delete'}
+                        </Button>
+                    )}
                 </div>
             ),
         },
@@ -118,7 +128,7 @@ export default function Users({ auth, users = {}, filters = {} }) {
                 <PageHeader
                     title="User Management"
                     description={`${users.total ?? userData.length} users across all roles`}
-                    actions={<Button href="/admin/users/create">Add New User</Button>}
+                    actions={canAssignRoles ? <Button href="/admin/users/create">Add New User</Button> : null}
                 />
 
                 <form onSubmit={applyFilters}>
