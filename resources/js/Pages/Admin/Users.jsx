@@ -44,6 +44,8 @@ export default function Users({ auth, users = {}, filters = {} }) {
         router.get('/admin/users', {}, { preserveState: false, replace: true });
     };
 
+    const handleEdit = (id) => router.visit(`/admin/users/${id}/edit`);
+
     const handleDelete = (user) => {
         if (!window.confirm(`Delete user "${user.name}"? This cannot be undone.`)) return;
         setDeletingId(user.id);
@@ -91,12 +93,14 @@ export default function Users({ auth, users = {}, filters = {} }) {
             align: 'right',
             render: (user) => (
                 <div className="flex justify-end gap-2">
+                    {canAssignRoles && (
                         <Button onClick={() => handleEdit(user.id)} variant="secondary">Edit</Button>
-
-                        <Button onClick={() => handleDelete(user)} disabled={deletingId === user.id} variant="danger">
-                        {deletingId === user.id ? 'Deleting...' : 'Delete'}
+                    )}
+                    {canDeleteUsers && (
+                        <Button onClick={() => handleDelete(user)} disabled={deletingId === user.id || user.id === currentUser?.id} variant="danger">
+                            {deletingId === user.id ? 'Deleting...' : 'Delete'}
                         </Button>
-
+                    )}
                 </div>
             ),
         },
@@ -108,7 +112,7 @@ export default function Users({ auth, users = {}, filters = {} }) {
                 <PageHeader
                     title="User Management"
                     description={`${users.total ?? userData.length} users across all roles`}
-                    actions={<Button href="/admin/users/create">Add New User</Button>}
+                    actions={canAssignRoles ? <Button href="/admin/users/create">Add New User</Button> : null}
                 />
 
                 <form onSubmit={applyFilters}>
