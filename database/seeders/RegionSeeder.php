@@ -49,7 +49,7 @@ class RegionSeeder extends Seeder
 
                 // Only create/assign approver if not already set
                 if (!$node->assigned_approver_id) {
-                    $email = strtolower(str_replace([' ', '(', ')', '\\', '/'], '-', $name)) . '.admin@iec.local';
+                    $email = strtolower(str_replace([' ', '(', ')', '\\', '/'], '-', $name)) . '.admin@iec.gm';
 
                     $user = User::firstOrCreate(
                         ['email' => $email],
