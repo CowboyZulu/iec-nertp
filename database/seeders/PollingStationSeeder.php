@@ -139,7 +139,9 @@ class PollingStationSeeder extends Seeder
                     $name .= ' (Stream ' . ($index + 1) . ')';
                 }
 
-                PollingStation::create([
+                PollingStation::updateOrCreate(
+                    ['code => $psCode'],
+                    [
                     'election_id'       => $this->electionId,
                     'ward_id'           => $wardId,
                     'code'              => $psCode,
