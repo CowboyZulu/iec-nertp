@@ -91,18 +91,12 @@ export default function Users({ auth, users = {}, filters = {} }) {
             align: 'right',
             render: (user) => (
                 <div className="flex justify-end gap-2">
-                    {canAssignRoles ? (
-                        <Button href={`/admin/users/${user.id}/edit`} variant="secondary">Edit</Button>
-                    ) : null}
-                    {canDeleteUsers ? (
-                        <Button
-                            variant="danger"
-                            disabled={deletingId === user.id || user.id === currentUser?.id}
-                            onClick={() => handleDelete(user)}
-                        >
-                            {deletingId === user.id ? 'Deleting...' : 'Delete'}
+                        <Button onClick={() => handleEdit(user.id)} variant="secondary">Edit</Button>
+
+                        <Button onClick={() => handleDelete(user)} disabled={deletingId === user.id} variant="danger">
+                        {deletingId === user.id ? 'Deleting...' : 'Delete'}
                         </Button>
-                    ) : null}
+
                 </div>
             ),
         },
@@ -114,7 +108,7 @@ export default function Users({ auth, users = {}, filters = {} }) {
                 <PageHeader
                     title="User Management"
                     description={`${users.total ?? userData.length} users across all roles`}
-                    actions={canAssignRoles ? <Button href="/admin/users/create">Add New User</Button> : null}
+                    actions={<Button href="/admin/users/create">Add New User</Button>}
                 />
 
                 <form onSubmit={applyFilters}>
