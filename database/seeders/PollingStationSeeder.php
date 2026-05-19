@@ -140,7 +140,7 @@ class PollingStationSeeder extends Seeder
                 }
 
                 PollingStation::updateOrCreate(
-                    ['code => $psCode'],
+                    ['code' => $psCode],
                     [
                     'election_id'       => $this->electionId,
                     'ward_id'           => $wardId,

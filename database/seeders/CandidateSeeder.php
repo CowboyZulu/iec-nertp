@@ -7,49 +7,55 @@ use App\Models\Election;
 use App\Models\PoliticalParty;
 use Illuminate\Database\Seeder;
 
+/**
+ * Seeds the six official candidates from the 2021 Gambian Presidential Election.
+ * Ballot numbers match the official IEC ballot order.
+ * Results column order (official PDF): Barrow, Darboe, Faal, Jammeh, Kandeh, Sallah.
+ */
 class CandidateSeeder extends Seeder
 {
-    public function run()
+    // [ballot_number, candidate_name, party_abbreviation, is_independent]
+    private const CANDIDATES = [
+        [1, 'Adama Barrow',          'NPP',   false],
+        [2, 'Ousainou Darboe',        'UDP',   false],
+        [3, 'Mama Kandeh',            'GDC',   false],
+        [4, 'Halifa Sallah',          'PDOIS', false],
+        [5, 'Essa M. Faal',           'APP',   false], // Runs under All Peoples Party
+        [6, 'Abdoulie Ebrima Jammeh', 'NUP',   false],
+    ];
+
+    public function run(): void
     {
         $electionId = Election::where('slug', 'gambia-2021-presidential')->value('id');
         if (!$electionId) {
             throw new \RuntimeException('Election gambia-2021-presidential must exist before running CandidateSeeder.');
         }
 
-        // Skip if candidates already exist for this election
         if (Candidate::where('election_id', $electionId)->exists()) {
             $this->command->info('CandidateSeeder: candidates already exist, skipping.');
             return;
         }
 
-        $mapping = [
-            ['name' => 'Adama Barrow',              'party' => "National People's Party"],
-            ['name' => 'Ousainou Darboe',            'party' => 'United Democratic Party'],
-            ['name' => 'Mama Kandeh',                'party' => 'Gambia Democratic Congress'],
-            ['name' => 'Halifa Sallah',              'party' => "People's Democratic Organisation for Independence and Socialism"],
-            ['name' => 'Essa M. Faal',               'party' => 'Independent'],
-            ['name' => 'Abdoulie Ebrima Jammeh',     'party' => 'National Union Party'],
-        ];
-
-        foreach ($mapping as $i => $m) {
+        foreach (self::CANDIDATES as [$ballot, $name, $partyAbbr, $isIndependent]) {
             $party = PoliticalParty::where('election_id', $electionId)
-                ->where('name', $m['party'])
+                ->where('abbreviation', $partyAbbr)
                 ->first();
 
             Candidate::firstOrCreate(
                 [
-                    'election_id'       => $electionId,
-                    'ballot_number'     => (string) ($i + 1),
+                    'election_id'  => $electionId,
+                    'ballot_number' => (string) $ballot,
                 ],
                 [
                     'political_party_id' => $party?->id,
-                    'name'               => $m['name'],
-                    'is_independent'     => $m['party'] === 'Independent',
+                    'name'               => $name,
+                    'is_independent'     => $isIndependent,
                     'is_active'          => true,
+                    'is_withdrawn'       => false,
                 ]
             );
         }
 
-        $this->command->info('CandidateSeeder: candidates created/verified.');
+        $this->command->info('✓ CandidateSeeder: ' . count(self::CANDIDATES) . ' candidates created.');
     }
 }
