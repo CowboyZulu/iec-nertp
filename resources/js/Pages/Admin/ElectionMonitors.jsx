@@ -1,10 +1,22 @@
 import { Badge, Button, DataTable, PageHeader, Pagination } from '@/Components/AdminUI';
 import AppLayout from '@/Layouts/AppLayout';
+import { router } from '@inertiajs/react';
+import { useState } from 'react';
 
 const monitorType = (type) => (type ? type.replace(/_/g, ' ') : 'Not set');
 
-export default function ElectionMonitors({ auth, monitors = {} }) {
+export default function ElectionMonitors({ auth, monitors = {}, flash }) {
+    const [deletingId, setDeletingId] = useState(null);
     const rows = monitors.data ?? [];
+
+    const handleDelete = (monitor) => {
+        if (!window.confirm(`Remove "${monitor.user?.name || 'this monitor'}" as an election monitor? This cannot be undone.`)) return;
+        setDeletingId(monitor.id);
+        router.delete(`/admin/election-monitors/${monitor.id}`, {
+            preserveScroll: true,
+            onFinish: () => setDeletingId(null),
+        });
+    };
 
     const columns = [
         {
@@ -43,6 +55,25 @@ export default function ElectionMonitors({ auth, monitors = {} }) {
             header: 'Status',
             render: (monitor) => <Badge tone={monitor.is_active ? 'teal' : 'rose'}>{monitor.is_active ? 'Active' : 'Inactive'}</Badge>,
         },
+        {
+            key: 'actions',
+            header: 'Actions',
+            align: 'right',
+            render: (monitor) => (
+                <div className="flex justify-end gap-2">
+                    <Button href={`/admin/election-monitors/${monitor.id}/edit`} variant="secondary">
+                        Edit
+                    </Button>
+                    <Button
+                        onClick={() => handleDelete(monitor)}
+                        disabled={deletingId === monitor.id}
+                        variant="danger"
+                    >
+                        {deletingId === monitor.id ? 'Removing…' : 'Remove'}
+                    </Button>
+                </div>
+            ),
+        },
     ];
 
     return (
@@ -53,6 +84,17 @@ export default function ElectionMonitors({ auth, monitors = {} }) {
                     description={`${monitors.total ?? rows.length} accredited monitors`}
                     actions={<Button href="/admin/election-monitors/create">Add Monitor</Button>}
                 />
+
+                {flash?.success && (
+                    <div className="mb-5 p-4 bg-green-50 border border-green-300 rounded-lg text-green-700 text-sm font-medium">
+                        ✓ {flash.success}
+                    </div>
+                )}
+                {flash?.error && (
+                    <div className="mb-5 p-4 bg-red-50 border border-red-300 rounded-lg text-red-700 text-sm font-medium">
+                        ⚠ {flash.error}
+                    </div>
+                )}
 
                 <DataTable
                     columns={columns}

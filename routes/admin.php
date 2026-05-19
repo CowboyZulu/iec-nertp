@@ -208,18 +208,24 @@ Route::middleware(['auth', 'role:iec-administrator'])
         return Inertia::render('Admin/PartyRepresentatives', [
             'auth'            => ['user' => Auth::user()],
             'representatives' => \App\Models\PartyRepresentative::with(['user', 'politicalParty', 'pollingStations'])->paginate(20),
+            'flash'           => session()->only(['success', 'error']),
         ]);
     })->name('party-representatives')->middleware('permission:register-parties');
 
     Route::get('/party-representatives/create', function () {
+        // Fall back to any non-archived election if no active one
+        $election = Election::where('status', 'active')->latest()->first()
+            ?? Election::whereNotIn('status', ['archived'])->latest()->first();
+
         return Inertia::render('Admin/PartyRepresentativeCreate', [
             'auth'            => ['user' => Auth::user()],
+            // Removed whereDoesntHave — too restrictive; same user can rep across elections
             'users'           => User::role('party-representative')
-                ->whereDoesntHave('partyRepresentative')
                 ->select('id', 'name', 'email')
                 ->get(),
             'parties'         => PoliticalParty::select('id', 'name')->get(),
             'pollingStations' => PollingStation::select('id', 'name', 'code')->get(),
+            'hasElection'     => $election !== null,
         ]);
     })->name('party-representatives.create')->middleware('permission:register-parties');
 
@@ -274,9 +280,12 @@ Route::middleware(['auth', 'role:iec-administrator'])
             'designation'           => 'nullable|string|max:255',
         ]);
         try {
-            $election = Election::where('status', 'active')->first();
+            // Fall back to any non-archived election if no active one exists
+            $election = Election::where('status', 'active')->first()
+                ?? Election::whereNotIn('status', ['archived'])->latest()->first();
+
             if (!$election) {
-                return back()->withErrors(['error' => 'No active election found. Please create and activate an election before adding party representatives.']);
+                return back()->withErrors(['error' => 'No elections found. Please create an election first before adding party representatives.']);
             }
 
             $rep = \App\Models\PartyRepresentative::create([
@@ -301,23 +310,83 @@ Route::middleware(['auth', 'role:iec-administrator'])
         }
     })->name('party-representatives.store')->middleware('permission:register-parties');
 
+    // ── DELETE Party Representative ───────────────────────────────────────────
+    Route::delete('/party-representatives/{id}', function ($id) {
+        try {
+            $rep = \App\Models\PartyRepresentative::findOrFail($id);
+            DB::table('party_representative_polling_station')
+                ->where('party_representative_id', $rep->id)->delete();
+            AuditLog::record(action: 'party_representative.deleted', event: 'deleted', module: 'UserManagement');
+            $rep->delete();
+            return redirect()->route('admin.party-representatives')->with('success', 'Party representative removed.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Failed to remove: ' . $e->getMessage()]);
+        }
+    })->name('party-representatives.destroy')->middleware('permission:register-parties');
+
     // ── Election Monitors ─────────────────────────────────────────────────────
     Route::get('/election-monitors', function () {
         return Inertia::render('Admin/ElectionMonitors', [
             'auth'     => ['user' => Auth::user()],
             'monitors' => \App\Models\ElectionMonitor::with(['user', 'pollingStations'])->paginate(20),
+            'flash'    => session()->only(['success', 'error']),
         ]);
     })->name('election-monitors')->middleware('permission:manage-election-monitors');
 
     Route::get('/election-monitors/create', function () {
+        // Fall back to any non-archived election if no active one
+        $election = Election::where('status', 'active')->latest()->first()
+            ?? Election::whereNotIn('status', ['archived'])->latest()->first();
+
         return Inertia::render('Admin/ElectionMonitorCreate', [
             'auth'            => ['user' => Auth::user()],
+            // Removed whereDoesntHave — too restrictive
             'users'           => User::role('election-monitor')
-                ->whereDoesntHave('electionMonitor')
                 ->select('id', 'name', 'email')->get(),
             'pollingStations' => PollingStation::select('id', 'name', 'code')->get(),
+            'hasElection'     => $election !== null,
         ]);
     })->name('election-monitors.create')->middleware('permission:manage-election-monitors');
+
+    Route::get('/election-monitors/{id}/edit', function ($id) {
+        $monitor = \App\Models\ElectionMonitor::with(['user', 'pollingStations'])->findOrFail($id);
+        return Inertia::render('Admin/ElectionMonitorEdit', [
+            'auth'            => ['user' => Auth::user()],
+            'monitor'         => $monitor,
+            'pollingStations' => PollingStation::select('id', 'name', 'code')->get(),
+        ]);
+    })->name('election-monitors.edit')->middleware('permission:manage-election-monitors');
+
+    Route::put('/election-monitors/{id}', function (Request $request, $id) {
+        $monitor = \App\Models\ElectionMonitor::findOrFail($id);
+        $request->validate([
+            'organization'          => 'nullable|string|max:255',
+            'type'                  => 'required|in:domestic,international,civil_society',
+            'is_active'             => 'boolean',
+            'polling_station_ids'   => 'required|array|min:1',
+            'polling_station_ids.*' => 'exists:polling_stations,id',
+        ]);
+        try {
+            $monitor->update([
+                'organization' => $request->organization,
+                'type'         => $request->type,
+                'is_active'    => $request->boolean('is_active', true),
+            ]);
+            DB::table('election_monitor_polling_station')
+                ->where('election_monitor_id', $monitor->id)->delete();
+            foreach ($request->polling_station_ids as $sid) {
+                DB::table('election_monitor_polling_station')->insert([
+                    'election_monitor_id' => $monitor->id,
+                    'polling_station_id'  => $sid,
+                    'assigned_at'         => now(),
+                ]);
+            }
+            AuditLog::record(action: 'election_monitor.updated', event: 'updated', module: 'UserManagement', auditable: $monitor);
+            return redirect()->route('admin.election-monitors')->with('success', 'Election monitor updated!');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Failed: ' . $e->getMessage()]);
+        }
+    })->name('election-monitors.update')->middleware('permission:manage-election-monitors');
 
     Route::post('/election-monitors', function (Request $request) {
         $request->validate([
@@ -328,9 +397,12 @@ Route::middleware(['auth', 'role:iec-administrator'])
             'polling_station_ids.*' => 'exists:polling_stations,id',
         ]);
         try {
-            $election = Election::where('status', 'active')->first();
+            // Fall back to any non-archived election if no active one exists
+            $election = Election::where('status', 'active')->first()
+                ?? Election::whereNotIn('status', ['archived'])->latest()->first();
+
             if (!$election) {
-                return back()->withErrors(['error' => 'No active election found. Please create and activate an election before adding election monitors.']);
+                return back()->withErrors(['error' => 'No elections found. Please create an election first before adding election monitors.']);
             }
 
             $monitor  = \App\Models\ElectionMonitor::create([
@@ -354,6 +426,20 @@ Route::middleware(['auth', 'role:iec-administrator'])
             return back()->withErrors(['error' => 'Failed: '.$e->getMessage()]);
         }
     })->name('election-monitors.store')->middleware('permission:manage-election-monitors');
+
+    // ── DELETE Election Monitor ───────────────────────────────────────────────
+    Route::delete('/election-monitors/{id}', function ($id) {
+        try {
+            $monitor = \App\Models\ElectionMonitor::findOrFail($id);
+            DB::table('election_monitor_polling_station')
+                ->where('election_monitor_id', $monitor->id)->delete();
+            AuditLog::record(action: 'election_monitor.deleted', event: 'deleted', module: 'UserManagement');
+            $monitor->delete();
+            return redirect()->route('admin.election-monitors')->with('success', 'Election monitor removed.');
+        } catch (\Exception $e) {
+            return back()->withErrors(['error' => 'Failed to remove: ' . $e->getMessage()]);
+        }
+    })->name('election-monitors.destroy')->middleware('permission:manage-election-monitors');
 
     // ── Roles ─────────────────────────────────────────────────────────────────
     Route::get('/roles', function () {
@@ -479,9 +565,6 @@ Route::middleware(['auth', 'role:iec-administrator'])
         return redirect()->route('admin.elections')->with('success', "Election {$verb} successfully!");
     })->name('elections.toggle-status')->middleware('permission:edit-election');
 
-    // ── Delete election ONLY — preserves all linked data ─────────────────────
-    // Uses soft delete so DB-level CASCADE ON DELETE is NOT triggered.
-    // Parties, polling stations, candidates, reps, monitors are all preserved.
     Route::delete('/elections/{election}', function (Election $election) {
         try {
             AuditLog::record(
@@ -491,10 +574,7 @@ Route::middleware(['auth', 'role:iec-administrator'])
                 auditable: $election,
                 extra: ['outcome' => 'success', 'election_name' => $election->name]
             );
-
-            // Soft delete — sets deleted_at only, does NOT cascade to related tables
             $election->delete();
-
             return redirect()->route('admin.elections')
                 ->with('success', "Election \"{$election->name}\" deleted. All related data (parties, stations, candidates) has been preserved.");
         } catch (\Exception $e) {
@@ -503,14 +583,9 @@ Route::middleware(['auth', 'role:iec-administrator'])
         }
     })->name('elections.destroy')->middleware('permission:edit-election');
 
-    // ── Safe force-delete — ONLY removes the election record ─────────────────
-    // This route is called from the Elections.jsx delete button.
-    // Soft-deleting via the Eloquent model does NOT fire DB-level CASCADE ON DELETE,
-    // so polling stations, parties, candidates, reps and monitors remain untouched.
     Route::delete('/elections/{id}/force', function ($id) {
         try {
             $election = Election::findOrFail($id);
-
             AuditLog::record(
                 action: 'election.force_deleted',
                 event: 'deleted',
@@ -521,10 +596,7 @@ Route::middleware(['auth', 'role:iec-administrator'])
                     'election_name' => $election->name,
                 ]
             );
-
-            // Soft delete only — all related data is preserved
             $election->delete();
-
             return redirect()->route('admin.elections')
                 ->with('success', "Election \"{$election->name}\" deleted successfully. All related data has been preserved.");
         } catch (\Exception $e) {

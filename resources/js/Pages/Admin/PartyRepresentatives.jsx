@@ -1,8 +1,20 @@
 import { Badge, Button, DataTable, PageHeader, Pagination } from '@/Components/AdminUI';
 import AppLayout from '@/Layouts/AppLayout';
+import { router } from '@inertiajs/react';
+import { useState } from 'react';
 
-export default function PartyRepresentatives({ auth, representatives = {} }) {
+export default function PartyRepresentatives({ auth, representatives = {}, flash }) {
+    const [deletingId, setDeletingId] = useState(null);
     const rows = representatives.data ?? [];
+
+    const handleDelete = (rep) => {
+        if (!window.confirm(`Remove "${rep.user?.name || 'this representative'}" as a party representative? This cannot be undone.`)) return;
+        setDeletingId(rep.id);
+        router.delete(`/admin/party-representatives/${rep.id}`, {
+            preserveScroll: true,
+            onFinish: () => setDeletingId(null),
+        });
+    };
 
     const columns = [
         {
@@ -46,9 +58,18 @@ export default function PartyRepresentatives({ auth, representatives = {} }) {
             header: 'Actions',
             align: 'right',
             render: (rep) => (
-                <Button href={`/admin/party-representatives/${rep.id}/edit`} variant="secondary">
-                    Edit
-                </Button>
+                <div className="flex justify-end gap-2">
+                    <Button href={`/admin/party-representatives/${rep.id}/edit`} variant="secondary">
+                        Edit
+                    </Button>
+                    <Button
+                        onClick={() => handleDelete(rep)}
+                        disabled={deletingId === rep.id}
+                        variant="danger"
+                    >
+                        {deletingId === rep.id ? 'Removing…' : 'Remove'}
+                    </Button>
+                </div>
             ),
         },
     ];
@@ -61,6 +82,17 @@ export default function PartyRepresentatives({ auth, representatives = {} }) {
                     description={`${representatives.total ?? rows.length} accredited representatives`}
                     actions={<Button href="/admin/party-representatives/create">Add Representative</Button>}
                 />
+
+                {flash?.success && (
+                    <div className="mb-5 p-4 bg-green-50 border border-green-300 rounded-lg text-green-700 text-sm font-medium">
+                        ✓ {flash.success}
+                    </div>
+                )}
+                {flash?.error && (
+                    <div className="mb-5 p-4 bg-red-50 border border-red-300 rounded-lg text-red-700 text-sm font-medium">
+                        ⚠ {flash.error}
+                    </div>
+                )}
 
                 <DataTable
                     columns={columns}

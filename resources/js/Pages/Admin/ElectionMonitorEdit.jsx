@@ -2,15 +2,17 @@ import AppLayout from '@/Layouts/AppLayout';
 import { useForm, Link } from '@inertiajs/react';
 import { useState } from 'react';
 
-export default function ElectionMonitorCreate({ auth, users, pollingStations, hasElection = true }) {
-    const { data, setData, post, processing, errors } = useForm({
-        user_id: '',
-        organization: '',
-        type: 'domestic',
-        polling_station_ids: [],
+export default function ElectionMonitorEdit({ auth, monitor, pollingStations }) {
+    const assignedIds = monitor.polling_stations?.map(s => s.id) || [];
+
+    const { data, setData, put, processing, errors } = useForm({
+        organization:        monitor.organization || '',
+        type:                monitor.type || 'domestic',
+        is_active:           monitor.is_active ?? true,
+        polling_station_ids: assignedIds,
     });
 
-    const [selectedStations, setSelectedStations] = useState([]);
+    const [selectedStations, setSelectedStations] = useState(assignedIds);
     const [stationSearch, setStationSearch] = useState('');
 
     const handleStationToggle = (stationId) => {
@@ -28,10 +30,8 @@ export default function ElectionMonitorCreate({ auth, users, pollingStations, ha
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        post('/admin/election-monitors');
+        put(`/admin/election-monitors/${monitor.id}`);
     };
-
-    const canSubmit = !processing && data.user_id && selectedStations.length > 0;
 
     return (
         <AppLayout user={auth?.user}>
@@ -41,28 +41,13 @@ export default function ElectionMonitorCreate({ auth, users, pollingStations, ha
                         <Link href="/admin/election-monitors" className="text-slate-500 hover:text-iec-navy text-sm mb-2 inline-block">
                             ← Back to Election Monitors
                         </Link>
-                        <h1 className="text-3xl font-bold text-iec-navy">Add Election Monitor</h1>
+                        <h1 className="text-3xl font-bold text-iec-navy">Edit Election Monitor</h1>
+                        <p className="text-slate-500 mt-1">
+                            {monitor.user?.name} — {monitor.user?.email}
+                        </p>
                     </div>
                 </div>
 
-                {/* No election warning */}
-                {!hasElection && (
-                    <div className="mb-5 p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-3">
-                        <span className="text-amber-500 text-xl flex-shrink-0">⚠</span>
-                        <div>
-                            <p className="text-amber-800 font-semibold">No elections found</p>
-                            <p className="text-amber-700 text-sm mt-1">
-                                Please{' '}
-                                <Link href="/admin/elections/create" className="underline font-semibold">
-                                    create an election
-                                </Link>{' '}
-                                first. Election monitors must be linked to an election record.
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                {/* Generic server error */}
                 {errors.error && (
                     <div className="mb-5 p-4 bg-red-50 border border-red-300 rounded-xl text-red-700">
                         {errors.error}
@@ -72,41 +57,8 @@ export default function ElectionMonitorCreate({ auth, users, pollingStations, ha
                 <div className="bg-white rounded-xl p-6 border border-slate-200">
                     <form onSubmit={handleSubmit} className="space-y-6">
 
-                        {/* User + Organization */}
+                        {/* Organization + Type */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-slate-600 mb-2 font-semibold">
-                                    Select Election Monitor User <span className="text-red-400">*</span>
-                                </label>
-                                <select
-                                    value={data.user_id}
-                                    onChange={(e) => setData('user_id', e.target.value)}
-                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg text-iec-navy"
-                                    required
-                                >
-                                    <option value="">— Choose a user —</option>
-                                    {users.length > 0 ? (
-                                        users.map((user) => (
-                                            <option key={user.id} value={user.id}>
-                                                {user.name} ({user.email})
-                                            </option>
-                                        ))
-                                    ) : (
-                                        <option disabled>No users with election-monitor role found</option>
-                                    )}
-                                </select>
-                                {errors.user_id && <p className="text-red-400 text-sm mt-1">{errors.user_id}</p>}
-                                {users.length === 0 && (
-                                    <p className="text-amber-600 text-xs mt-1">
-                                        Go to{' '}
-                                        <Link href="/admin/users/create" className="underline text-iec-pink-600">
-                                            User Management
-                                        </Link>{' '}
-                                        and create a user with the <strong>election-monitor</strong> role first.
-                                    </p>
-                                )}
-                            </div>
-
                             <div>
                                 <label className="block text-slate-600 mb-2 font-semibold">Organization (Optional)</label>
                                 <input
@@ -118,30 +70,43 @@ export default function ElectionMonitorCreate({ auth, users, pollingStations, ha
                                 />
                                 {errors.organization && <p className="text-red-400 text-sm mt-1">{errors.organization}</p>}
                             </div>
+
+                            <div>
+                                <label className="block text-slate-600 mb-2 font-semibold">Monitor Type</label>
+                                <select
+                                    value={data.type}
+                                    onChange={(e) => setData('type', e.target.value)}
+                                    className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg text-iec-navy"
+                                >
+                                    <option value="domestic">Domestic</option>
+                                    <option value="international">International</option>
+                                    <option value="civil_society">Civil Society</option>
+                                </select>
+                                {errors.type && <p className="text-red-400 text-sm mt-1">{errors.type}</p>}
+                            </div>
                         </div>
 
-                        {/* Monitor Type */}
+                        {/* Active Status */}
                         <div>
-                            <label className="block text-slate-600 mb-2 font-semibold">Monitor Type</label>
-                            <select
-                                value={data.type}
-                                onChange={(e) => setData('type', e.target.value)}
-                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-lg text-iec-navy"
-                            >
-                                <option value="domestic">Domestic</option>
-                                <option value="international">International</option>
-                                <option value="civil_society">Civil Society</option>
-                            </select>
-                            {errors.type && <p className="text-red-400 text-sm mt-1">{errors.type}</p>}
+                            <label className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={data.is_active}
+                                    onChange={(e) => setData('is_active', e.target.checked)}
+                                    className="h-4 w-4 text-iec-pink-600 bg-white border-slate-200 rounded"
+                                />
+                                <div>
+                                    <div className="text-iec-navy font-medium">Active</div>
+                                    <div className="text-slate-500 text-xs">Monitor can log in and access their stations</div>
+                                </div>
+                            </label>
                         </div>
 
                         {/* Polling Station Assignment */}
                         <div>
                             <label className="block text-slate-600 mb-2 font-semibold">
-                                Assign to Polling Stations <span className="text-red-400">*</span>
-                                <span className="text-slate-500 font-normal text-xs ml-2">
-                                    ({selectedStations.length} selected)
-                                </span>
+                                Assigned Polling Stations
+                                <span className="text-slate-500 font-normal text-xs ml-2">({selectedStations.length} selected)</span>
                             </label>
 
                             <input
@@ -154,10 +119,7 @@ export default function ElectionMonitorCreate({ auth, users, pollingStations, ha
 
                             {pollingStations.length === 0 ? (
                                 <div className="p-6 bg-amber-50 border border-amber-300 rounded-lg text-center">
-                                    <p className="text-amber-700 text-sm">No polling stations found. Please create polling stations first.</p>
-                                    <Link href="/admin/polling-stations/create" className="text-iec-pink-600 underline text-sm mt-2 inline-block">
-                                        Create Polling Station →
-                                    </Link>
+                                    <p className="text-amber-700 text-sm">No polling stations found.</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-72 overflow-y-auto p-1">
@@ -194,12 +156,15 @@ export default function ElectionMonitorCreate({ auth, users, pollingStations, ha
                         <div className="flex gap-4">
                             <button
                                 type="submit"
-                                disabled={!canSubmit}
+                                disabled={processing || selectedStations.length === 0}
                                 className="flex-1 px-6 py-3 bg-iec-pink-600 hover:bg-iec-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg"
                             >
-                                {processing ? 'Creating…' : 'Create Election Monitor'}
+                                {processing ? 'Saving…' : 'Save Changes'}
                             </button>
-                            <Link href="/admin/election-monitors" className="flex-1 px-6 py-3 bg-white hover:bg-slate-100 text-iec-navy font-bold rounded-lg text-center">
+                            <Link
+                                href="/admin/election-monitors"
+                                className="flex-1 px-6 py-3 bg-white hover:bg-slate-100 text-iec-navy font-bold rounded-lg text-center"
+                            >
                                 Cancel
                             </Link>
                         </div>

@@ -2,7 +2,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { useForm, Link } from '@inertiajs/react';
 import { useState } from 'react';
 
-export default function PartyRepresentativeCreate({ auth, users, parties, pollingStations }) {
+export default function PartyRepresentativeCreate({ auth, users, parties, pollingStations, hasElection = true }) {
     const { data, setData, post, processing, errors } = useForm({
         user_id: '',
         political_party_id: '',
@@ -31,6 +31,8 @@ export default function PartyRepresentativeCreate({ auth, users, parties, pollin
         post('/admin/party-representatives');
     };
 
+    const canSubmit = !processing && data.user_id && data.political_party_id && selectedStations.length > 0;
+
     return (
         <AppLayout user={auth?.user}>
             <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -43,6 +45,30 @@ export default function PartyRepresentativeCreate({ auth, users, parties, pollin
                     </div>
                 </div>
 
+                {/* No election warning */}
+                {!hasElection && (
+                    <div className="mb-5 p-4 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-3">
+                        <span className="text-amber-500 text-xl flex-shrink-0">⚠</span>
+                        <div>
+                            <p className="text-amber-800 font-semibold">No elections found</p>
+                            <p className="text-amber-700 text-sm mt-1">
+                                Please{' '}
+                                <Link href="/admin/elections/create" className="underline font-semibold">
+                                    create an election
+                                </Link>{' '}
+                                first. Party representatives must be linked to an election record.
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Generic server error */}
+                {errors.error && (
+                    <div className="mb-5 p-4 bg-red-50 border border-red-300 rounded-xl text-red-700">
+                        {errors.error}
+                    </div>
+                )}
+
                 <div className="bg-white rounded-xl p-6 border border-slate-200">
                     <form onSubmit={handleSubmit} className="space-y-6">
 
@@ -50,8 +76,7 @@ export default function PartyRepresentativeCreate({ auth, users, parties, pollin
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-slate-600 mb-2 font-semibold">
-                                    Select Party Representative User
-                                    {/* <span className="text-slate-500 font-normal text-xs ml-2">(users with party-representative role)</span> */}
+                                    Select Party Representative User <span className="text-red-400">*</span>
                                 </label>
                                 <select
                                     value={data.user_id}
@@ -67,15 +92,19 @@ export default function PartyRepresentativeCreate({ auth, users, parties, pollin
                                             </option>
                                         ))
                                     ) : (
-                                        <option disabled>No available users — create users with party-representative role first</option>
+                                        <option disabled>No users with party-representative role found</option>
                                     )}
                                 </select>
-                                {/* {errors.user_id && <p className="text-red-400 text-sm mt-1">{errors.user_id}</p>}
-                                <p className="text-slate-500 text-xs mt-1">
-                                    To add users here, go to{' '}
-                                    <Link href="/admin/users/create" className="text-iec-pink-600 underline">User Management</Link>{' '}
-                                    and assign the <strong className="text-slate-600">party-representative</strong> role.
-                                </p> */}
+                                {errors.user_id && <p className="text-red-400 text-sm mt-1">{errors.user_id}</p>}
+                                {users.length === 0 && (
+                                    <p className="text-amber-600 text-xs mt-1">
+                                        Go to{' '}
+                                        <Link href="/admin/users/create" className="underline text-iec-pink-600">
+                                            User Management
+                                        </Link>{' '}
+                                        and create a user with the <strong>party-representative</strong> role first.
+                                    </p>
+                                )}
                             </div>
 
                             <div>
@@ -97,8 +126,8 @@ export default function PartyRepresentativeCreate({ auth, users, parties, pollin
                                 Political Party <span className="text-red-400">*</span>
                             </label>
                             {parties.length === 0 ? (
-                                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-lg">
-                                    <p className="text-amber-300 text-sm">
+                                <div className="p-4 bg-amber-50 border border-amber-300 rounded-lg">
+                                    <p className="text-amber-700 text-sm">
                                         No parties registered yet.{' '}
                                         <Link href="/admin/parties/create" className="text-iec-pink-600 underline">Register a party first</Link>.
                                     </p>
@@ -124,13 +153,12 @@ export default function PartyRepresentativeCreate({ auth, users, parties, pollin
                         {/* Polling Station Assignment */}
                         <div>
                             <label className="block text-slate-600 mb-2 font-semibold">
-                                Assign to Polling Stations
+                                Assign to Polling Stations <span className="text-red-400">*</span>
                                 <span className="text-slate-500 font-normal text-xs ml-2">
                                     ({selectedStations.length} selected)
                                 </span>
                             </label>
 
-                            {/* Search */}
                             <input
                                 type="text"
                                 placeholder="Search stations by name or code..."
@@ -140,8 +168,8 @@ export default function PartyRepresentativeCreate({ auth, users, parties, pollin
                             />
 
                             {pollingStations.length === 0 ? (
-                                <div className="p-6 bg-amber-500/10 border border-amber-500/30 rounded-lg text-center">
-                                    <p className="text-amber-300 text-sm">No polling stations found. Please create polling stations first.</p>
+                                <div className="p-6 bg-amber-50 border border-amber-300 rounded-lg text-center">
+                                    <p className="text-amber-700 text-sm">No polling stations found. Please create polling stations first.</p>
                                     <Link href="/admin/polling-stations/create" className="text-iec-pink-600 underline text-sm mt-2 inline-block">
                                         Create Polling Station →
                                     </Link>
@@ -181,8 +209,8 @@ export default function PartyRepresentativeCreate({ auth, users, parties, pollin
                         <div className="flex gap-4">
                             <button
                                 type="submit"
-                                disabled={processing || selectedStations.length === 0 || !data.user_id || !data.political_party_id}
-                                className="flex-1 px-6 py-3 bg-iec-pink-600 hover:bg-iec-pink-700 disabled:bg-iec-pink-600/50 disabled:cursor-not-allowed text-white font-bold rounded-lg"
+                                disabled={!canSubmit}
+                                className="flex-1 px-6 py-3 bg-iec-pink-600 hover:bg-iec-pink-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg"
                             >
                                 {processing ? 'Creating…' : 'Create Party Representative'}
                             </button>

@@ -4,6 +4,8 @@ import useInertiaPrefetch from '@/Hooks/useInertiaPrefetch';
 import { ElectionSelector, PublicElectionHeader } from '@/Components/PublicElectionHeader';
 import { electionTypeLabel, publicElectionTitle } from '@/Utils/publicElection';
 
+// ── Sub-components ────────────────────────────────────────────────────────────
+
 function EmptyState({ title, message, action }) {
     return (
         <div className="max-w-3xl mx-auto rounded-xl border border-slate-200 bg-white p-8 sm:p-10 text-center shadow-sm">
@@ -32,7 +34,6 @@ function ProgressCard({ stats }) {
     const progress = stats?.total_stations > 0
         ? Math.round((stats.stations_reported / stats.total_stations) * 100)
         : 0;
-
     return (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-end justify-between gap-4">
@@ -58,6 +59,122 @@ function ProgressCard({ stats }) {
     );
 }
 
+// ── NEW: Certification status banner ─────────────────────────────────────────
+function CertificationBanner({ election }) {
+    if (!election || election.status === 'certified') return null;
+
+    const messages = {
+        active:          'Elections are in progress. Polling officers are submitting results.',
+        results_pending: 'Results are being collected and entering the certification workflow.',
+        certifying:      'Results are progressing through the approval pipeline: Ward → Constituency → Admin Area → IEC Chairman.',
+    };
+
+    return (
+        <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-4 flex items-start gap-3">
+            <div className="text-amber-500 text-2xl flex-shrink-0 leading-none mt-0.5">⚠️</div>
+            <div className="flex-1">
+                <p className="font-extrabold text-amber-900 text-sm">
+                    Results Not Yet Nationally Certified
+                </p>
+                <p className="text-amber-800 text-xs mt-1 leading-relaxed">
+                    {messages[election.status] || 'Figures shown are provisional and subject to change.'}{' '}
+                    Official final results will be published after the IEC Chairman completes national certification.
+                </p>
+            </div>
+            <span className="flex-shrink-0 text-[10px] font-bold uppercase tracking-wide bg-amber-200 text-amber-800 px-2 py-1 rounded-md">
+                Provisional
+            </span>
+        </div>
+    );
+}
+
+// ── NEW: Map teaser section ───────────────────────────────────────────────────
+function LiveMapSection({ election, stats, param }) {
+    if (!election) return null;
+
+    const total      = parseInt(stats?.total_stations || 0);
+    const reported   = parseInt(stats?.stations_reported || 0);
+    const certified  = election.status === 'certified';
+    const progress   = total > 0 ? Math.round((reported / total) * 100) : 0;
+
+    return (
+        <Link
+            href={`/results/map${param}`}
+            className="group block relative overflow-hidden rounded-2xl border border-slate-700 bg-slate-900 hover:border-slate-600 transition-all hover:shadow-2xl"
+        >
+            {/* Grid pattern background */}
+            <div className="absolute inset-0 opacity-10 pointer-events-none">
+                <svg width="100%" height="100%">
+                    <defs>
+                        <pattern id="elecgrid" width="40" height="40" patternUnits="userSpaceOnUse">
+                            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5"/>
+                        </pattern>
+                    </defs>
+                    <rect width="100%" height="100%" fill="url(#elecgrid)" />
+                </svg>
+            </div>
+
+            {/* Gradient overlay */}
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-900/60 to-transparent pointer-events-none" />
+
+            <div className="relative z-10 p-6 sm:p-8">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                    <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">
+                            🗺️ Live Election Map · The Gambia
+                        </p>
+                        <h3 className="text-white text-xl sm:text-2xl font-extrabold leading-snug mb-3">
+                            {total > 0
+                                ? `${reported.toLocaleString()} of ${total.toLocaleString()} Stations Reporting`
+                                : 'National Polling Station Coverage'}
+                        </h3>
+
+                        {/* Progress bar */}
+                        {total > 0 && (
+                            <div className="mb-4 max-w-xs">
+                                <div className="flex justify-between text-xs text-slate-400 mb-1">
+                                    <span>{progress}% reported</span>
+                                    {certified && <span className="text-green-400 font-bold">✓ Certified</span>}
+                                </div>
+                                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full bg-gradient-to-r from-iec-pink-500 to-emerald-500 transition-all"
+                                        style={{ width: `${progress}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Legend pills */}
+                        <div className="flex flex-wrap items-center gap-3">
+                            {[
+                                { color: '#ef4444', label: 'Submitted — Awaiting Approval' },
+                                { color: '#f59e0b', label: 'Under Review' },
+                                { color: '#22c55e', label: 'Nationally Certified' },
+                            ].map(item => (
+                                <div key={item.color} className="flex items-center gap-1.5 text-xs text-slate-400">
+                                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                                    {item.label}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* CTA */}
+                    <div className="flex-shrink-0">
+                        <span className="inline-flex items-center gap-2 bg-iec-pink-600 group-hover:bg-iec-pink-700 text-white font-bold px-6 py-3 rounded-xl transition-colors text-sm whitespace-nowrap">
+                            View Full Map
+                            <svg className="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </Link>
+    );
+}
+
 function CandidateResults({ candidates = [], totalValidVotes = 0 }) {
     return (
         <div className="rounded-xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
@@ -79,18 +196,19 @@ function CandidateResults({ candidates = [], totalValidVotes = 0 }) {
                         <div
                             key={candidate.id}
                             className={`rounded-xl border p-5 ${
-                                isLeading
-                                    ? 'border-emerald-200 bg-emerald-50/60'
-                                    : 'border-slate-200 bg-slate-50/70'
+                                isLeading ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-slate-50/70'
                             }`}
                         >
                             <div className="flex flex-wrap items-start justify-between gap-4">
                                 <div className="flex min-w-0 items-start gap-3">
                                     <span className="mt-1 h-3 w-3 flex-shrink-0 rounded-full" style={{ backgroundColor: primaryColor }} />
                                     <div className="min-w-0">
-                                        <div className="truncate text-lg font-bold text-slate-950">{candidate.name}</div>
+                                        <div className="truncate text-lg font-bold text-slate-950">
+                                            {candidate.name}
+                                            {isLeading && <span className="ml-2 text-sm text-emerald-600 font-normal">🏆 Leading</span>}
+                                        </div>
                                         <div className="text-sm text-slate-500">
-                                            {candidate.party_abbr} - {candidate.party_name}
+                                            {candidate.party_abbr} — {candidate.party_name}
                                         </div>
                                     </div>
                                 </div>
@@ -124,7 +242,7 @@ function HomeCandidateSnapshot({ candidates = [], totalValidVotes = 0, param = '
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">Result snapshot</p>
                 <h2 className="mt-3 text-2xl font-extrabold text-slate-950">Awaiting public totals</h2>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
-                    Candidate totals will appear here as soon as submitted results are available for the selected election.
+                    Candidate totals will appear here as submitted results move through the certification pipeline.
                 </p>
             </div>
         );
@@ -175,15 +293,15 @@ function HomeCandidateSnapshot({ candidates = [], totalValidVotes = 0, param = '
 function CertificationStatusCard({ election, stats, message }) {
     const hasSubmittedResults = (stats?.stations_reported || 0) > 0;
     const stages = [
-        { label: 'Result submission', done: hasSubmittedResults },
+        { label: 'Result submission',    done: hasSubmittedResults },
         { label: 'Certification review', done: ['certifying', 'certified'].includes(election?.status) },
         { label: 'Public result totals', done: election?.status === 'certified' },
     ];
     const statusMessage = election?.status === 'certified'
         ? 'The election has completed the certification workflow and official public results are available.'
         : hasSubmittedResults
-            ? 'Submitted results are feeding the public dashboard while certification continues through the IEC workflow.'
-            : 'The IEC certification workflow will update as polling station results are submitted and reviewed.';
+            ? 'Submitted results are feeding the public dashboard while certification progresses through Ward → Constituency → Admin Area → IEC Chairman.'
+            : 'Polling officers submit results which then move through the multi-level IEC certification workflow.';
 
     return (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -191,10 +309,7 @@ function CertificationStatusCard({ election, stats, message }) {
             <h2 className="mt-2 text-2xl font-extrabold text-slate-950">
                 {election?.status === 'certified' ? 'Results certified' : 'Certification in progress'}
             </h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-                {statusMessage}
-            </p>
-
+            <p className="mt-3 text-sm leading-6 text-slate-600">{statusMessage}</p>
             <div className="mt-5 space-y-3">
                 {stages.map((stage) => (
                     <div key={stage.label} className="flex items-center gap-3">
@@ -215,6 +330,7 @@ function CertificationStatusCard({ election, stats, message }) {
     );
 }
 
+// ── Homepage view ─────────────────────────────────────────────────────────────
 function HomePage({ election, elections, selectedElectionId, stats, candidates, message, param }) {
     const totalValidVotes = stats?.valid_votes || 0;
     const progress = stats?.total_stations > 0
@@ -223,6 +339,7 @@ function HomePage({ election, elections, selectedElectionId, stats, candidates, 
     const turnout = stats?.total_registered > 0
         ? ((stats.total_cast / stats.total_registered) * 100).toFixed(1)
         : 0;
+    const isCertified = election?.status === 'certified';
 
     if (!election) {
         return (
@@ -246,6 +363,7 @@ function HomePage({ election, elections, selectedElectionId, stats, candidates, 
     return (
         <AppLayout>
             <div className="bg-slate-50">
+                {/* Hero */}
                 <section className="bg-gradient-to-br from-white via-slate-50 to-sky-50 border-b border-slate-200">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-14">
                         <div className="grid items-center gap-8 lg:grid-cols-[1.15fr_0.85fr]">
@@ -257,15 +375,21 @@ function HomePage({ election, elections, selectedElectionId, stats, candidates, 
                                     {publicElectionTitle(election)}
                                 </h1>
                                 <div className="mt-4 flex flex-wrap items-center gap-2">
-                                    <span className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
-                                        {election.status === 'certified' ? 'Official results' : 'Ongoing results'}
+                                    <span className={`rounded-md border px-3 py-1 text-sm font-semibold ${
+                                        isCertified
+                                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                            : 'border-amber-200 bg-amber-50 text-amber-700'
+                                    }`}>
+                                        {isCertified ? '✓ Official Results' : '⏳ Provisional Results'}
                                     </span>
                                     <span className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-600">
                                         {electionTypeLabel(election)}
                                     </span>
                                 </div>
                                 <p className="mt-5 max-w-2xl text-base sm:text-lg leading-8 text-slate-600">
-                                    A summarized public view of the active election, including turnout, reporting progress, and the latest result snapshot.
+                                    {isCertified
+                                        ? 'Official nationally certified results are now published and available.'
+                                        : 'Live provisional results from polling stations progressing through the IEC certification workflow.'}
                                 </p>
                                 <div className="mt-7 flex flex-wrap gap-3">
                                     <Link
@@ -273,11 +397,18 @@ function HomePage({ election, elections, selectedElectionId, stats, candidates, 
                                         prefetch
                                         className="inline-flex rounded-md bg-iec-pink-600 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-iec-pink-700"
                                     >
-                                        View full results
+                                        View Full Results
+                                    </Link>
+                                    <Link
+                                        href={`/results/map${param}`}
+                                        className="inline-flex rounded-md bg-slate-900 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-slate-800"
+                                    >
+                                        🗺️ Live Map
                                     </Link>
                                 </div>
                             </div>
 
+                            {/* Progress panel */}
                             <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                                 <div className="flex items-center justify-between gap-4">
                                     <div>
@@ -299,7 +430,9 @@ function HomePage({ election, elections, selectedElectionId, stats, candidates, 
                                     />
                                 </div>
                                 <p className="mt-4 text-sm leading-6 text-slate-600">
-                                    {message || 'Summary figures update from publicly displayable results as certification progresses.'}
+                                    {isCertified
+                                        ? 'All results have been nationally certified by the IEC Chairman.'
+                                        : 'Provisional figures update as results are certified through the IEC workflow.'}
                                 </p>
                             </div>
                         </div>
@@ -310,15 +443,24 @@ function HomePage({ election, elections, selectedElectionId, stats, candidates, 
                     </div>
                 </section>
 
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-12">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-10 space-y-6">
+
+                    {/* ── 1. LIVE MAP SECTION — appears first ──────────────────────── */}
+                    <LiveMapSection election={election} stats={stats} param={param} />
+
+                    {/* ── 2. CERTIFICATION BANNER (only when not certified) ─────────── */}
+                    <CertificationBanner election={election} />
+
+                    {/* ── 3. STAT CARDS ─────────────────────────────────────────────── */}
+                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                         <StatCard label="Registered voters" value={parseInt(stats?.total_registered || 0).toLocaleString()} />
-                        <StatCard label="Votes cast" value={parseInt(stats?.total_cast || 0).toLocaleString()} />
-                        <StatCard label="Valid votes" value={parseInt(stats?.valid_votes || 0).toLocaleString()} accent="text-emerald-600" />
-                        <StatCard label="Turnout" value={`${turnout}%`} accent="text-sky-700" />
+                        <StatCard label="Votes cast"        value={parseInt(stats?.total_cast       || 0).toLocaleString()} />
+                        <StatCard label="Valid votes"       value={parseInt(stats?.valid_votes      || 0).toLocaleString()} accent="text-emerald-600" />
+                        <StatCard label="Turnout"           value={`${turnout}%`}                                            accent="text-sky-700" />
                     </div>
 
-                    <div className="mt-6 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+                    {/* ── 4. RESULTS SNAPSHOT + CERTIFICATION STATUS ────────────────── */}
+                    <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
                         <HomeCandidateSnapshot candidates={candidates || []} totalValidVotes={totalValidVotes} param={param} />
                         <CertificationStatusCard election={election} stats={stats} message={message} />
                     </div>
@@ -328,6 +470,7 @@ function HomePage({ election, elections, selectedElectionId, stats, candidates, 
     );
 }
 
+// ── /results page view ────────────────────────────────────────────────────────
 export default function Results({ election, elections = [], selectedElectionId, stats, candidates, message }) {
     const param = selectedElectionId ? `?election=${selectedElectionId}` : '';
     const { url } = usePage();
@@ -348,6 +491,9 @@ export default function Results({ election, elections = [], selectedElectionId, 
         );
     }
 
+    // ── /results page ─────────────────────────────────────────────────────────
+    const isCertified = election?.status === 'certified';
+
     if (!election) {
         return (
             <AppLayout>
@@ -361,7 +507,7 @@ export default function Results({ election, elections = [], selectedElectionId, 
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
                         <EmptyState
                             title="No public election selected"
-                            message="There is no active election configured for the public homepage yet. Once an administrator creates an election and enables public display, the results portal will use that election data."
+                            message="There is no active election configured for the public homepage yet."
                         />
                     </div>
                 </div>
@@ -377,9 +523,10 @@ export default function Results({ election, elections = [], selectedElectionId, 
                         election={election}
                         elections={elections}
                         selectedElectionId={selectedElectionId}
-                        description="The public portal is ready, but this election has not reached publication. Station status remains available for transparency while certification continues."
+                        description="The public portal is ready. Station status remains available for transparency while certification continues."
                     />
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-6">
+                        <LiveMapSection election={election} stats={stats} param={param} />
                         <EmptyState
                             title="Results pending publication"
                             message={message || 'Election results are currently being certified through the IEC approval pipeline.'}
@@ -402,7 +549,6 @@ export default function Results({ election, elections = [], selectedElectionId, 
     const turnout = stats?.total_registered > 0
         ? ((stats.total_cast / stats.total_registered) * 100).toFixed(1)
         : 0;
-
     const totalValidVotes = stats?.valid_votes || 0;
 
     return (
@@ -412,25 +558,33 @@ export default function Results({ election, elections = [], selectedElectionId, 
                     election={election}
                     elections={elections}
                     selectedElectionId={selectedElectionId}
-                    description="Official public results are presented from the election configured by the IEC administrator for homepage display."
+                    description={isCertified
+                        ? 'Official nationally certified election results published by the IEC Chairman.'
+                        : 'Provisional results from polling stations in the certification workflow.'}
                 />
 
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-12">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-12 space-y-6">
+
+                    {/* 1. Map section */}
+                    <LiveMapSection election={election} stats={stats} param={param} />
+
+                    {/* 2. Certification banner (provisional only) */}
+                    <CertificationBanner election={election} />
+
+                    {/* 3. Stats */}
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
                         <StatCard label="Registered voters" value={parseInt(stats?.total_registered || 0).toLocaleString()} />
-                        <StatCard label="Votes cast" value={parseInt(stats?.total_cast || 0).toLocaleString()} />
-                        <StatCard label="Valid votes" value={parseInt(stats?.valid_votes || 0).toLocaleString()} accent="text-emerald-600" />
-                        <StatCard label="Rejected votes" value={parseInt(stats?.rejected_votes || 0).toLocaleString()} accent="text-amber-600" />
-                        <StatCard label="Turnout" value={`${turnout}%`} accent="text-sky-700" />
+                        <StatCard label="Votes cast"        value={parseInt(stats?.total_cast       || 0).toLocaleString()} />
+                        <StatCard label="Valid votes"       value={parseInt(stats?.valid_votes      || 0).toLocaleString()} accent="text-emerald-600" />
+                        <StatCard label="Rejected votes"    value={parseInt(stats?.rejected_votes   || 0).toLocaleString()} accent="text-amber-600" />
+                        <StatCard label="Turnout"           value={`${turnout}%`}                                            accent="text-sky-700" />
                     </div>
 
-                    <div className="mt-6">
-                        <ProgressCard stats={stats} />
-                    </div>
+                    {/* 4. Progress bar */}
+                    <ProgressCard stats={stats} />
 
-                    <div className="mt-6">
-                        <CandidateResults candidates={candidates} totalValidVotes={totalValidVotes} />
-                    </div>
+                    {/* 5. Candidate results */}
+                    <CandidateResults candidates={candidates} totalValidVotes={totalValidVotes} />
                 </div>
             </div>
         </AppLayout>
