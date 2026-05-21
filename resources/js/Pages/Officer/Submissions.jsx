@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 const STATUS_CONFIG = {
     submitted:                 { label: 'Submitted',             color: 'bg-sky-500/20 text-sky-300 border-sky-500/30',        icon: '📤' },
-    pending_party_acceptance:  { label: 'Party Review',          color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',icon: '🤝' },
+    pending_party_acceptance:  { label: 'Party Review',          color: 'bg-pink-500/20 text-Pink-500 border-pink-500/30',icon: '🤝' },
     pending_ward:              { label: 'Ward Review',           color: 'bg-amber-500/20 text-amber-300 border-amber-500/30',  icon: '⏳' },
     ward_certified:            { label: 'Ward Certified',        color: 'bg-iec-pink-500/20 text-iec-pink-600 border-teal-500/30',    icon: '✓' },
     pending_constituency:      { label: 'Constituency Review',   color: 'bg-iec-pink-500/20 text-iec-pink-600 border-blue-500/30',    icon: '⏳' },
@@ -64,10 +64,10 @@ export default function Submissions({ auth, submissions = [], station }) {
 
                 {/* Header */}
                 <div className="mb-6">
-                    <Link href="/officer/dashboard"
+                    {/* <Link href="/officer/dashboard"
                           className="text-slate-500 hover:text-iec-navy text-sm inline-flex items-center gap-1 mb-3">
                         ← Officer Dashboard
-                    </Link>
+                    </Link> */}
                     <div className="flex flex-wrap gap-4 items-center justify-between">
                         <div>
                             <h1 className="text-3xl font-bold text-iec-navy">My Submissions</h1>
@@ -93,8 +93,8 @@ export default function Submissions({ auth, submissions = [], station }) {
                         📋 {submissions.length} total submission{submissions.length !== 1 ? 's' : ''}
                     </div>
                     {pendingCount > 0 && (
-                        <div className="px-4 py-2 bg-amber-500/15 border border-amber-500/30 rounded-full text-amber-300 text-sm">
-                            ⏳ {pendingCount} in pipeline
+                        <div className="px-4 py-2 bg-pink-500/15 border border-pink-500/30 rounded-full text-pink-500 text-sm">
+                           {pendingCount} in pipeline
                         </div>
                     )}
                     {certifiedCount > 0 && (
@@ -148,7 +148,7 @@ export default function Submissions({ auth, submissions = [], station }) {
                                                         {cfg.icon} {cfg.label}
                                                     </span>
                                                     {submission.rejection_count > 0 && (
-                                                        <span className="px-2 py-0.5 rounded-full text-xs bg-orange-500/20 text-orange-300">
+                                                        <span className="px-2 py-0.5 rounded-full text-xs bg-Pink-500/20 text-pink-500">
                                                             Rejected {submission.rejection_count}×
                                                         </span>
                                                     )}

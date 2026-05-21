@@ -85,9 +85,9 @@ export default function ResultSubmit({ auth, station, election, candidates = [],
         return (
             <AppLayout user={auth?.user}>
                 <div className="container mx-auto px-4 py-8 max-w-2xl">
-                    <Link href="/officer/dashboard" className="text-slate-500 hover:text-iec-navy text-sm inline-flex items-center gap-1 mb-6">
+                    {/* <Link href="/officer/dashboard" className="text-slate-500 hover:text-iec-navy text-sm inline-flex items-center gap-1 mb-6">
                         ← Officer Dashboard
-                    </Link>
+                    </Link> */}
                     <div className="bg-white rounded-xl p-10 border border-teal-500/30 text-center">
                         <div className="text-5xl mb-4">✅</div>
                         <h1 className="text-2xl font-bold text-iec-navy mb-2">Results Already Submitted</h1>
@@ -110,11 +110,11 @@ export default function ResultSubmit({ auth, station, election, candidates = [],
             <div className="container mx-auto px-4 py-8 max-w-3xl">
 
                 <div className="mb-6">
-                    <Link href="/officer/dashboard" className="text-slate-500 hover:text-iec-navy text-sm inline-flex items-center gap-1 mb-3">
+                    {/* <Link href="/officer/dashboard" className="text-slate-500 hover:text-iec-navy text-sm inline-flex items-center gap-1 mb-3">
                         ← Officer Dashboard
-                    </Link>
+                    </Link> */}
                     <h1 className="text-2xl font-bold text-iec-navy">
-                        {isResubmission ? '↩ Resubmit Result' : '📋 Submit Election Results'}
+                        {isResubmission ? '↩ Resubmit Result' : 'Submit Election Results'}
                     </h1>
                     {station && (
                         <p className="text-slate-500 mt-1 text-sm">
@@ -128,7 +128,7 @@ export default function ResultSubmit({ auth, station, election, candidates = [],
                 {isResubmission && editableResult?.last_rejection_reason && (
                     <div className="mb-6 p-4 bg-red-500/10 border border-red-500/40 rounded-xl">
                         <div className="text-red-300 font-semibold text-sm mb-1">
-                            ⚠ This result was rejected {editableResult.rejection_count} time(s). Reason:
+                            This result was rejected {editableResult.rejection_count} time(s). Reason:
                         </div>
                         <div className="text-red-200 text-sm" dangerouslySetInnerHTML={{ __html: editableResult.last_rejection_reason }} />
                         <div className="text-red-400 text-xs mt-2">Please correct the issues above before resubmitting.</div>
@@ -142,6 +142,69 @@ export default function ResultSubmit({ auth, station, election, candidates = [],
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+
+                    {candidates.length > 0 && (
+                        <div className="bg-white rounded-xl p-6 border border-slate-200">
+                            <div className="flex justify-between items-start mb-1">
+                                <h2 className="text-iec-navy font-bold text-lg">Votes by Candidate</h2>
+                                <span className={`text-xs font-mono px-2 py-1 rounded ${
+                                    !candidateError && candidateSum > 0
+                                        ? 'bg-iec-pink-500/20 text-iec-pink-600'
+                                        : 'bg-white text-slate-500'
+                                }`}>
+                                    Sum: {candidateSum.toLocaleString()}
+                                    {data.valid_votes ? ` / ${parseInt(data.valid_votes).toLocaleString()}` : ''}
+                                </span>
+                            </div>
+                            <p className="text-slate-500 text-xs mb-4">Candidate votes must sum to Valid Votes</p>
+
+                            <div className="space-y-3">
+                                {candidates.map((candidate) => (
+                                    <div key={candidate.id}
+                                        className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                                        <div className="w-3 h-3 rounded-full flex-shrink-0"
+                                            style={{ backgroundColor: candidate.party_color }} />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-iec-navy font-semibold text-sm">{candidate.name}</div>
+                                            <div className="text-slate-500 text-xs">{candidate.party_name}</div>
+                                        </div>
+                                        {data.valid_votes && data.candidate_votes[candidate.id] && (
+                                            <div className="w-20 bg-white rounded-full h-1.5 flex-shrink-0">
+                                                <div className="h-1.5 rounded-full transition-all"
+                                                    style={{
+                                                        width: `${Math.min(100, (parseInt(data.candidate_votes[candidate.id]) / parseInt(data.valid_votes)) * 100)}%`,
+                                                        backgroundColor: candidate.party_color,
+                                                    }} />
+                                            </div>
+                                        )}
+                                        <input type="number" min="0"
+                                            value={data.candidate_votes[candidate.id] ?? ''}
+                                            onChange={(e) => setData('candidate_votes', {
+                                                ...data.candidate_votes,
+                                                [candidate.id]: e.target.value,
+                                            })}
+                                            className="w-28 px-3 py-2 bg-white border border-slate-200 rounded-lg text-iec-navy text-center font-mono text-sm focus:outline-none focus:border-blue-500"
+                                            placeholder="0" required />
+                                    </div>
+                                ))}
+                            </div>
+
+                            {candidateError && (
+                                <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-xs">
+                                    ⚠ {candidateError}
+                                </div>
+                            )}
+                            {errors.candidate_votes && (
+                                <p className="text-red-400 text-xs mt-2">{errors.candidate_votes}</p>
+                            )}
+                        </div>
+                    )}
+
+                    {candidates.length === 0 && (
+                        <div className="p-5 bg-pink-500/10 border border-pink-500/30 rounded-xl text-pink-600 text-sm">
+                            ⚠ No candidates configured for this election. Contact the administrator.
+                        </div>
+                    )}
 
                     <div className="bg-white rounded-xl p-6 border border-slate-200">
                         <h2 className="text-iec-navy font-bold text-lg mb-1">Vote Totals</h2>
@@ -215,68 +278,7 @@ export default function ResultSubmit({ auth, station, election, candidates = [],
                         )}
                     </div>
 
-                    {candidates.length > 0 && (
-                        <div className="bg-white rounded-xl p-6 border border-slate-200">
-                            <div className="flex justify-between items-start mb-1">
-                                <h2 className="text-iec-navy font-bold text-lg">Votes by Candidate</h2>
-                                <span className={`text-xs font-mono px-2 py-1 rounded ${
-                                    !candidateError && candidateSum > 0
-                                        ? 'bg-iec-pink-500/20 text-iec-pink-600'
-                                        : 'bg-white text-slate-500'
-                                }`}>
-                                    Sum: {candidateSum.toLocaleString()}
-                                    {data.valid_votes ? ` / ${parseInt(data.valid_votes).toLocaleString()}` : ''}
-                                </span>
-                            </div>
-                            <p className="text-slate-500 text-xs mb-4">Candidate votes must sum to Valid Votes</p>
-
-                            <div className="space-y-3">
-                                {candidates.map((candidate) => (
-                                    <div key={candidate.id}
-                                        className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                                        <div className="w-3 h-3 rounded-full flex-shrink-0"
-                                            style={{ backgroundColor: candidate.party_color }} />
-                                        <div className="flex-1 min-w-0">
-                                            <div className="text-iec-navy font-semibold text-sm">{candidate.name}</div>
-                                            <div className="text-slate-500 text-xs">{candidate.party_name}</div>
-                                        </div>
-                                        {data.valid_votes && data.candidate_votes[candidate.id] && (
-                                            <div className="w-20 bg-white rounded-full h-1.5 flex-shrink-0">
-                                                <div className="h-1.5 rounded-full transition-all"
-                                                    style={{
-                                                        width: `${Math.min(100, (parseInt(data.candidate_votes[candidate.id]) / parseInt(data.valid_votes)) * 100)}%`,
-                                                        backgroundColor: candidate.party_color,
-                                                    }} />
-                                            </div>
-                                        )}
-                                        <input type="number" min="0"
-                                            value={data.candidate_votes[candidate.id] ?? ''}
-                                            onChange={(e) => setData('candidate_votes', {
-                                                ...data.candidate_votes,
-                                                [candidate.id]: e.target.value,
-                                            })}
-                                            className="w-28 px-3 py-2 bg-white border border-slate-200 rounded-lg text-iec-navy text-center font-mono text-sm focus:outline-none focus:border-blue-500"
-                                            placeholder="0" required />
-                                    </div>
-                                ))}
-                            </div>
-
-                            {candidateError && (
-                                <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-xs">
-                                    ⚠ {candidateError}
-                                </div>
-                            )}
-                            {errors.candidate_votes && (
-                                <p className="text-red-400 text-xs mt-2">{errors.candidate_votes}</p>
-                            )}
-                        </div>
-                    )}
-
-                    {candidates.length === 0 && (
-                        <div className="p-5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-300 text-sm">
-                            ⚠ No candidates configured for this election. Contact the administrator.
-                        </div>
-                    )}
+                    
 
                     <div className="bg-white rounded-xl p-6 border border-slate-200">
                         <h2 className="text-iec-navy font-bold text-lg mb-1">Result Sheet Photo</h2>
@@ -311,78 +313,6 @@ export default function ResultSubmit({ auth, station, election, candidates = [],
                             <input type="file" accept="image/*" onChange={handlePhotoChange} className="hidden" />
                         </label>
                         {errors.photo && <p className="text-red-400 text-xs mt-1">{errors.photo}</p>}
-                    </div>
-
-                    <div className="bg-slate-800/40 rounded-xl p-6 border border-slate-700/50">
-                        <h2 className="text-white font-bold text-lg mb-1">Vote Totals</h2>
-                        <p className="text-gray-500 text-xs mb-4">Valid + Rejected must equal Total Votes Cast</p>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="col-span-2 sm:col-span-1">
-                                <label className="block text-gray-300 text-sm font-semibold mb-2">
-                                    Registered Voters <span className="text-red-400">*</span>
-                                </label>
-                                <input type="number" min="1"
-                                    value={data.registered_voters}
-                                    onChange={(e) => setData('registered_voters', e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white font-mono focus:outline-none focus:border-blue-500"
-                                    placeholder="0" required />
-                                {errors.registered_voters && <p className="text-red-400 text-xs mt-1">{errors.registered_voters}</p>}
-                            </div>
-
-                            <div className="col-span-2 sm:col-span-1">
-                                <label className="block text-gray-300 text-sm font-semibold mb-2">
-                                    Calculated total votes <span className="text-red-400">*</span>
-                                </label>
-                                <input type="number" min="0"
-                                    value={data.total_votes_cast}
-                                    onChange={(e) => setData('total_votes_cast', e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-900/50 border border-slate-600 rounded-lg text-white font-mono focus:outline-none focus:border-blue-500"
-                                    placeholder="0" required />
-                                {errors.total_votes_cast && <p className="text-red-400 text-xs mt-1">{errors.total_votes_cast}</p>}
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-300 text-sm font-semibold mb-2">
-                                    Valid Votes <span className="text-red-400">*</span>
-                                </label>
-                                <input type="number" min="0"
-                                    value={data.valid_votes}
-                                    onChange={(e) => setData('valid_votes', e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-900/50 border border-teal-600/50 rounded-lg text-teal-300 font-mono focus:outline-none focus:border-teal-500"
-                                    placeholder="0" required />
-                            </div>
-
-                            <div>
-                                <label className="block text-gray-300 text-sm font-semibold mb-2">
-                                    Invalid Votes <span className="text-red-400">*</span>
-                                </label>
-                                <input type="number" min="0"
-                                    value={data.rejected_votes}
-                                    onChange={(e) => setData('rejected_votes', e.target.value)}
-                                    className="w-full px-4 py-3 bg-slate-900/50 border border-red-600/30 rounded-lg text-red-300 font-mono focus:outline-none focus:border-red-500"
-                                    placeholder="0" required />
-                            </div>
-                        </div>
-
-                        {totalsError && (
-                            <div className="mt-3 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-xs">
-                                ⚠ {totalsError}
-                            </div>
-                        )}
-
-                        {data.total_votes_cast && data.registered_voters && !totalsError && (
-                            <div className="mt-3 p-3 bg-slate-900/50 rounded-lg">
-                                <div className="flex justify-between text-xs text-gray-400 mb-1">
-                                    <span>Voter Turnout</span>
-                                    <span className="font-bold text-white">{turnout}%</span>
-                                </div>
-                                <div className="w-full bg-slate-700 rounded-full h-2">
-                                    <div className="bg-gradient-to-r from-blue-600 to-teal-500 h-2 rounded-full transition-all"
-                                        style={{ width: `${Math.min(turnout, 100)}%` }} />
-                                </div>
-                            </div>
-                        )}
                     </div>
 
                     <div className="flex gap-4">

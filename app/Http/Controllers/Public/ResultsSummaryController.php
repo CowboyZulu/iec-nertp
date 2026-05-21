@@ -112,6 +112,7 @@ class ResultsSummaryController extends Controller
                 c.id,
                 c.name,
                 c.photo_path,
+                pp.leader_photo_path,
                 COALESCE(pp.name, 'Independent')  AS party_name,
                 COALESCE(pp.abbreviation, 'IND')  AS party_abbr,
                 COALESCE(pp.color, '#6b7280')     AS party_color,
@@ -126,13 +127,13 @@ class ResultsSummaryController extends Controller
             })
             ->where('c.election_id', $election->id)
             ->where('c.is_active', true)
-            ->groupBy('c.id', 'c.name', 'c.photo_path', 'pp.name', 'pp.abbreviation', 'pp.color')
+            ->groupBy('c.id', 'c.name', 'c.photo_path', 'pp.leader_photo_path', 'pp.name', 'pp.abbreviation', 'pp.color')
             ->orderByDesc('total_votes')
             ->get()
             ->map(fn($c) => [
                 'id'          => $c->id,
                 'name'        => $c->name,
-                'photo_url'   => $c->photo_path ? asset('storage/' . $c->photo_path) : null,
+                'photo_url'   => $c->photo_path ? asset('storage/' . $c->photo_path) : ($c->leader_photo_path ? asset('storage/' . $c->leader_photo_path) : null),
                 'party_name'  => $c->party_name,
                 'party_abbr'  => $c->party_abbr,
                 'party_color' => $c->party_color,

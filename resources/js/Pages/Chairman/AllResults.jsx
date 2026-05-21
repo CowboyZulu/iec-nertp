@@ -32,7 +32,7 @@ export default function AllResults({ auth, results = {}, filter = 'all', counts 
 
                 <div className="mb-6">
                     <Link href="/chairman/dashboard"
-                          className="text-slate-500 hover:text-iec-navy text-sm inline-flex items-center gap-1 mb-3">
+                          className="text-slate-800 hover:text-iec-navy text-sm inline-flex items-center gap-1 mb-3">
                         Chairman Dashboard
                     </Link>
                     <h1 className="text-3xl font-bold text-iec-navy">All Results — National Overview</h1>
@@ -48,7 +48,7 @@ export default function AllResults({ auth, results = {}, filter = 'all', counts 
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                                 filter === f.key
                                     ? 'bg-iec-pink-600 text-white'
-                                    : 'bg-white text-slate-500 hover:bg-white border border-slate-200'
+                                    : 'bg-white text-slate-600 hover:bg-white border border-slate-300'
                             }`}
                         >
                             {f.label}

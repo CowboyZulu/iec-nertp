@@ -58,8 +58,8 @@ export default function OfficerDashboard({ auth, station, statistics = {}, hasSu
                                     ✓ Results Submitted
                                 </div>
                             ) : (
-                                <div className="px-4 py-2 bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-300 text-sm font-semibold">
-                                    ⏳ Results Not Yet Submitted
+                                <div className="px-4 py-2 bg-pink-500/20 border border-pink-500/40 rounded-xl text-pink-600 text-sm font-semibold">
+                                    Results Not Yet Submitted
                                 </div>
                             )}
                         </div>
@@ -85,9 +85,9 @@ export default function OfficerDashboard({ auth, station, statistics = {}, hasSu
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
                     {[
                         { label: 'Total Submissions', value: statistics.totalSubmissions || 0, color: 'text-iec-navy' },
-                        { label: 'In Pipeline',       value: statistics.pending          || 0, color: 'text-amber-300' },
+                        { label: 'In Pipeline',       value: statistics.pending          || 0, color: 'text-amber-400' },
                         { label: 'Certified',         value: statistics.certified        || 0, color: 'text-iec-pink-600' },
-                        { label: 'Rejected',          value: statistics.rejected         || 0, color: 'text-red-300' },
+                        { label: 'Rejected',          value: statistics.rejected         || 0, color: 'text-red-700' },
                     ].map((card) => (
                         <div key={card.label} className="bg-white rounded-xl p-5 border border-slate-200">
                             <div className={`text-3xl font-bold mb-1 ${card.color}`}>{card.value}</div>
@@ -103,7 +103,7 @@ export default function OfficerDashboard({ auth, station, statistics = {}, hasSu
                         href="/officer/results/submit"
                         className={`group p-6 rounded-xl border transition-all ${
                             canSubmit
-                                ? 'bg-iec-pink-600/20 hover:bg-iec-pink-700/30 border-iec-pink-200'
+                                ? 'bg-iec-slate-600/20 hover:bg-iec-slate-700/30 border-iec-slate-200'
                                 : statistics.rejected > 0
                                 ? 'bg-red-600/15 hover:bg-red-600/25 border-red-500/30'
                                 : 'bg-slate-100 border-slate-200 opacity-60 pointer-events-none'

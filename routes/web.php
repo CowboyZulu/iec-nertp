@@ -9,13 +9,17 @@ use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\ReportController;
 
 // ─── Home — Public Results Page ───────────────────────────────────────────────
-// The home page IS the public results page.
 Route::get('/', [ResultsSummaryController::class, 'index'])->name('home');
 
 // ─── Public Results ───────────────────────────────────────────────────────────
 Route::get('/results', [ResultsSummaryController::class, 'index'])->name('results');
 Route::get('/results/map', [ResultsMapController::class, 'index'])->name('results.map');
 Route::get('/results/stations', [ResultsStationsController::class, 'index'])->name('results.stations');
+
+// ─── JSON endpoint: homepage embedded map data ────────────────────────────────
+// Returns station lat/lng/status/votes array for the LeafletMap on the homepage.
+// Shares the same cache as the full /results/map page.
+Route::get('/api/public/map-stations', [ResultsMapController::class, 'stationsJson']);
 
 // ─── Auth routes ──────────────────────────────────────────────────────────────
 require __DIR__.'/auth.php';
