@@ -4,8 +4,8 @@ import { Link, router } from '@inertiajs/react';
 
 const STATUS_LABELS = {
     submitted:                  { label: 'Submitted',              color: 'bg-slate-100 text-slate-600' },
-    pending_party_acceptance:   { label: 'Awaiting Party',         color: 'bg-yellow-500/20 text-yellow-300' },
-    pending_ward:               { label: 'Pending Ward',           color: 'bg-amber-500/20 text-amber-300' },
+    pending_party_acceptance:   { label: 'Pending Ward',           color: 'bg-iec-pink-500/20 text-iec-pink-600' },
+    pending_ward:               { label: 'Pending Ward',           color: 'bg-iec-pink-500/20 text-iec-pink-600' },
     ward_certified:             { label: 'Ward Certified',         color: 'bg-iec-pink-500/20 text-iec-pink-600' },
     pending_constituency:       { label: 'At Constituency',        color: 'bg-iec-pink-500/20 text-iec-pink-600' },
     constituency_certified:     { label: 'Constituency Certified', color: 'bg-cyan-500/20 text-cyan-300' },
@@ -16,10 +16,10 @@ const STATUS_LABELS = {
 };
 
 const PARTY_STATUS_CONFIG = {
-    accepted:                  { label: 'Accepted',             color: 'bg-iec-pink-500/20 text-iec-pink-600 border-teal-500/30',    icon: '✓' },
-    accepted_with_reservation: { label: 'Accepted (Reserved)',  color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30', icon: '⚠' },
-    rejected:                  { label: 'Rejected',             color: 'bg-red-500/20 text-red-300 border-red-500/30',       icon: '✗' },
-    pending:                   { label: 'Pending',              color: 'bg-slate-100 text-slate-600 border-slate-200',    icon: '…' },
+    accepted:                  { label: 'Accepted',             color: 'bg-iec-pink-500/20 text-iec-pink-600 border-teal-500/30',     icon: '✓' },
+    accepted_with_reservation: { label: 'Accepted (Reserved)',  color: 'bg-iec-pink-50 text-iec-pink-600 border-iec-pink-200',         icon: '⚠' },
+    rejected:                  { label: 'Rejected',             color: 'bg-red-500/20 text-red-300 border-red-500/30',                icon: '✗' },
+    pending:                   { label: 'Pending',              color: 'bg-slate-100 text-slate-500 border-slate-200',               icon: '…' },
 };
 
 const ACTION_CONFIG = {
@@ -36,7 +36,7 @@ const ACTION_CONFIG = {
         title:        'Certify with Reservation',
         description:  'Result will be certified but flagged with your reservation note. It will be promoted to the Constituency queue.',
         confirmBtn:   'Certify with Reservation',
-        confirmColor: 'bg-amber-600 hover:bg-amber-700',
+        confirmColor: 'bg-iec-pink-600 hover:bg-iec-pink-700',
         commentReq:   true,
         commentLabel: 'Reservation Note (required)',
         placeholder:  'Describe your reservation or concern…',
@@ -59,20 +59,19 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
     const [processing, setProcessing]         = useState(false);
     const [flash, setFlash]                   = useState(null);
 
+    // Parallel workflow: 3 tabs only — no more blocking "Awaiting Party" tab
     const filterTabs = [
-        { key: 'pending',        label: 'Pending',        count: counts.pending        || 0, color: 'amber'  },
-        { key: 'awaiting_party', label: 'Awaiting Party', count: counts.awaiting_party || 0, color: 'yellow' },
-        { key: 'approved',       label: 'Certified',      count: counts.approved       || 0, color: 'teal'   },
-        { key: 'rejected',       label: 'Rejected',       count: counts.rejected       || 0, color: 'red'    },
-        { key: 'all',            label: 'All',            count: counts.all            || 0, color: 'slate'  },
+        { key: 'pending',   label: 'Pending',   count: counts.pending   || 0, color: 'pink'  },
+        { key: 'approved',  label: 'Certified', count: counts.approved  || 0, color: 'teal'  },
+        { key: 'rejected',  label: 'Rejected',  count: counts.rejected  || 0, color: 'red'   },
+        { key: 'all',       label: 'All',       count: counts.all       || 0, color: 'slate' },
     ];
 
     const tabColors = {
-        amber:  { active: 'bg-amber-500 text-white',  dot: 'bg-amber-400' },
-        yellow: { active: 'bg-yellow-500 text-white', dot: 'bg-yellow-400' },
-        teal:   { active: 'bg-iec-pink-500 text-white',   dot: 'bg-teal-400'  },
-        red:    { active: 'bg-red-500 text-white',    dot: 'bg-red-400'   },
-        slate:  { active: 'bg-slate-500 text-iec-navy',  dot: 'bg-slate-400' },
+        pink:  { active: 'bg-iec-pink-600 text-white',      dot: 'bg-iec-pink-400' },
+        teal:  { active: 'bg-iec-pink-500 text-white',      dot: 'bg-teal-400'     },
+        red:   { active: 'bg-red-500 text-white',           dot: 'bg-red-400'      },
+        slate: { active: 'bg-slate-500 text-iec-navy',      dot: 'bg-slate-400'    },
     };
 
     const handleFilterChange = (key) => {
@@ -93,7 +92,7 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
         setFlash(null);
     };
 
-    const submitAction = async () => {
+    const submitAction = () => {
         if (!selectedResult || !action) return;
         if (ACTION_CONFIG[action].commentReq && !comment.trim()) {
             setFlash({ type: 'error', text: 'A comment is required for this action.' });
@@ -106,19 +105,20 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
             approve_reservation: `/ward/approve-with-reservation/${selectedResult.id}`,
             reject:              `/ward/reject/${selectedResult.id}`,
         };
-        try {
-            await new Promise((resolve, reject) => {
-                router.post(endpoints[action], { comments: comment }, {
-                    onSuccess: () => resolve(),
-                    onError:   (e) => reject(e),
-                    onFinish:  () => setProcessing(false),
-                });
-            });
-            closePanel();
-        } catch {
-            setFlash({ type: 'error', text: 'An error occurred. Please try again.' });
-            setProcessing(false);
-        }
+
+        router.post(endpoints[action], { comments: comment }, {
+            preserveState: false,
+            preserveScroll: true,
+            onSuccess: () => {
+                closePanel();
+            },
+            onError: (errors) => {
+                setFlash({ type: 'error', text: 'An error occurred. Please try again.' });
+            },
+            onFinish: () => {
+                setProcessing(false);
+            },
+        });
     };
 
     return (
@@ -127,11 +127,17 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
 
                 {/* Header */}
                 <div className="mb-6">
-                    <Link href="/ward/dashboard" className="text-slate-500 hover:text-iec-navy text-sm mb-2 inline-flex items-center gap-1">
+                    {/* <Link href="/ward/dashboard" className="text-slate-500 hover:text-iec-navy text-sm mb-2 inline-flex items-center gap-1">
                         ← Ward Dashboard
-                    </Link>
+                    </Link> */}
                     <h1 className="text-3xl font-bold text-iec-navy">Ward Approval Queue</h1>
                     {ward?.name && <p className="text-iec-pink-600 mt-1">{ward.name}</p>}
+                    {/* Parallel workflow info — shown once, not on every card */}
+                    {/* <div className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-iec-pink-500/10 border border-iec-pink-500/20 rounded-lg">
+                        <span className="text-iec-pink-600 text-xs font-semibold">
+                            ⚡ Parallel Review — Ward Approvers and Party Representatives review simultaneously. Party responses are informational and do not block your actions.
+                        </span>
+                    </div> */}
                 </div>
 
                 {flash && !selectedResult && (
@@ -152,12 +158,12 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
                                 key={tab.key}
                                 onClick={() => handleFilterChange(tab.key)}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
-                                    active ? cfg.active : 'bg-white text-slate-500 hover:bg-white border border-slate-200'
+                                    active ? cfg.active : 'bg-white text-slate-700 hover:bg-white border border-slate-200'
                                 }`}
                             >
                                 {!active && <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />}
                                 {tab.label}
-                                <span className={`text-xs px-2 py-0.5 rounded-full ${active ? 'bg-slate-100' : 'bg-white'}`}>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${active ? 'bg-pink-500' : 'bg-white'}`}>
                                     {tab.count}
                                 </span>
                             </button>
@@ -165,24 +171,14 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
                     })}
                 </div>
 
-                {/* Awaiting party info banner */}
-                {filter === 'awaiting_party' && (
-                    <div className="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
-                        <p className="text-yellow-300 text-sm">
-                            ℹ️ These results are awaiting responses from party representatives. They will automatically move to your <strong>Pending</strong> queue once all assigned parties have responded.
-                        </p>
-                    </div>
-                )}
-
                 {/* Results List */}
                 {results.length === 0 ? (
                     <div className="bg-white rounded-xl p-12 border border-slate-200 text-center">
                         <div className="text-5xl mb-4">
-                            {filter === 'pending' ? '⏳' : filter === 'awaiting_party' ? '🤝' : filter === 'approved' ? '✅' : filter === 'rejected' ? '↩' : '📋'}
+                            {filter === 'pending' ? '⏳' : filter === 'approved' ? '✅' : filter === 'rejected' ? '↩' : '📋'}
                         </div>
-                        <p className="text-slate-500 mt-4">
-                            {filter === 'pending' ? 'No results pending certification'
-                            : filter === 'awaiting_party' ? 'No results awaiting party acceptance'
+                        <p className="text-slate-700 mt-4">
+                            {filter === 'pending' ? 'No results pending your ward certification'
                             : filter === 'approved' ? 'No certified results yet'
                             : filter === 'rejected' ? 'No rejected results'
                             : 'No results found'}
@@ -191,15 +187,17 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
                 ) : (
                     <div className="space-y-4">
                         {results.map(result => {
-                            const statusCfg     = STATUS_LABELS[result.certification_status] || { label: result.certification_status, color: 'bg-slate-100 text-slate-600' };
-                            const isPending     = result.certification_status === 'pending_ward';
-                            const isAwaitingPty = result.certification_status === 'pending_party_acceptance';
+                            const statusCfg = STATUS_LABELS[result.certification_status] || { label: result.certification_status, color: 'bg-slate-100 text-slate-600' };
+
+                            // Parallel workflow: both pending_ward and legacy pending_party_acceptance are actionable
+                            const isPending = result.certification_status === 'pending_ward'
+                                || result.certification_status === 'pending_party_acceptance';
 
                             return (
                                 <div
                                     key={result.id}
                                     className={`bg-white rounded-xl border transition-all ${
-                                        isPending ? 'border-amber-500/30' : isAwaitingPty ? 'border-yellow-500/20' : 'border-slate-200'
+                                        isPending ? 'border-iec-pink-500/30' : 'border-slate-200'
                                     }`}
                                 >
                                     {/* Result Header */}
@@ -221,24 +219,17 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
                                                 Submitted by <strong className="text-slate-600">{result.officer}</strong> · {result.submitted_at}
                                             </p>
                                         </div>
+                                        {/* Party responses shown as informational only */}
                                         <div className="text-right text-sm flex-shrink-0">
-                                            <div className="text-slate-500">Party Status</div>
-                                            <div className={`font-semibold ${
-                                                result.party_total === 0 ? 'text-slate-500' :
-                                                result.party_accepted === result.party_total ? 'text-green-300' : 'text-amber-300'
+                                            <div className="text-slate-400 text-xs">Party Responses</div>
+                                            <div className={`font-semibold text-sm ${
+                                                result.party_total === 0 ? 'text-slate-400' :
+                                                result.party_accepted === result.party_total ? 'text-iec-pink-600' : 'text-slate-500'
                                             }`}>
-                                                {result.party_total === 0 ? 'N/A' : `${result.party_accepted}/${result.party_total} Accepted`}
+                                                {result.party_total === 0 ? 'N/A' : `${result.party_accepted}/${result.party_total} Responded`}
                                             </div>
                                         </div>
                                     </div>
-
-                                    {isAwaitingPty && (
-                                        <div className="mx-5 mb-3 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
-                                            <p className="text-yellow-300 text-xs">
-                                                ⏳ Awaiting party representative responses — {result.party_accepted}/{result.party_total} parties have responded.
-                                            </p>
-                                        </div>
-                                    )}
 
                                     {/* Vote Summary */}
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 px-5 pb-4">
@@ -279,10 +270,12 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
                                         </div>
                                     )}
 
-                                    {/* Party status WITH comments */}
+                                    {/* Party Responses — informational context only */}
                                     {result.party_acceptances?.length > 0 && (
                                         <div className="px-5 pb-4">
-                                            <div className="text-xs text-slate-500 mb-2 uppercase tracking-wide">Party Representative Status</div>
+                                            <div className="text-xs text-slate-400 mb-2 uppercase tracking-wide">
+                                                Party Responses <span className="normal-case font-normal">(informational — does not affect your approval)</span>
+                                            </div>
                                             <div className="space-y-2">
                                                 {result.party_acceptances.map((pa, idx) => {
                                                     const cfg = PARTY_STATUS_CONFIG[pa.status] || PARTY_STATUS_CONFIG.pending;
@@ -321,7 +314,7 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
                                         </div>
                                     )}
 
-                                    {/* Ward cert comments (if already certified — shown in approved tab) */}
+                                    {/* Ward cert comments (shown in approved tab) */}
                                     {result.ward_comments && (
                                         <div className="mx-5 mb-4 p-3 bg-iec-pink-500/10 border border-teal-500/30 rounded-lg">
                                             <div className="text-xs text-iec-pink-600 mb-1 font-semibold">Ward Certification Note</div>
@@ -329,16 +322,16 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
                                         </div>
                                     )}
 
-                                    {/* Action Buttons */}
+                                    {/* Action Buttons — available immediately in parallel workflow */}
                                     {isPending && (
                                         <div className="px-5 pb-5 flex flex-wrap gap-3 border-t border-slate-200 pt-4 mt-2">
                                             <button onClick={() => openAction(result, 'approve')} className="flex-1 min-w-[140px] px-4 py-3 bg-iec-pink-600 hover:bg-iec-pink-700 text-white font-bold rounded-lg transition-colors">
                                                 ✓ Certify
                                             </button>
-                                            <button onClick={() => openAction(result, 'approve_reservation')} className="flex-1 min-w-[160px] px-4 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg transition-colors">
+                                            <button onClick={() => openAction(result, 'approve_reservation')} className="flex-1 min-w-[160px] px-4 py-3 bg-iec-pink-600/70 hover:bg-iec-pink-600 text-white font-bold rounded-lg transition-colors">
                                                 ⚠ Certify with Reservation
                                             </button>
-                                            <button onClick={() => openAction(result, 'reject')} className="flex-1 min-w-[140px] px-4 py-3 bg-red-700 hover:bg-red-600 text-white font-bold rounded-lg transition-colors">
+                                            <button onClick={() => openAction(result, 'reject')} className="flex-1 min-w-[140px] px-4 py-3 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg transition-colors">
                                                 ✗ Reject &amp; Return
                                             </button>
                                         </div>
@@ -362,14 +355,14 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
                             <div className="flex items-start justify-between gap-4">
                                 <div>
                                     <h2 className="text-lg font-bold text-iec-navy">{ACTION_CONFIG[action].title}</h2>
-                                    <p className="text-slate-500 text-xs mt-0.5">
+                                    <p className="text-slate-600 text-xs mt-0.5">
                                         {selectedResult.polling_station} · {selectedResult.polling_station_code}
                                     </p>
                                 </div>
                                 <button
                                     onClick={closePanel}
                                     disabled={processing}
-                                    className="text-slate-500 hover:text-iec-navy text-2xl leading-none flex-shrink-0 w-8 h-8 flex items-center justify-center"
+                                    className="text-slate-600 hover:text-iec-navy text-2xl leading-none flex-shrink-0 w-8 h-8 flex items-center justify-center"
                                 >
                                     ×
                                 </button>
@@ -378,12 +371,10 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
 
                         {/* Scrollable Content */}
                         <div className="px-6 py-5 overflow-y-auto flex-1 space-y-4">
-                            {/* Description */}
-                            <div className="p-3 bg-white rounded-xl text-sm text-slate-600">
+                            <div className="p-3 bg-white rounded-xl text-sm text-slate-700">
                                 {ACTION_CONFIG[action].description}
                             </div>
 
-                            {/* Stats */}
                             <div className="grid grid-cols-3 gap-3">
                                 {[
                                     { label: 'Votes Cast',  value: selectedResult.total_votes_cast?.toLocaleString() },
@@ -391,7 +382,7 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
                                     { label: 'Turnout',     value: `${selectedResult.turnout}%` },
                                 ].map(s => (
                                     <div key={s.label} className="bg-white p-3 rounded-xl text-center">
-                                        <div className="text-xs text-slate-500 mb-0.5">{s.label}</div>
+                                        <div className="text-xs text-slate-600 mb-0.5">{s.label}</div>
                                         <div className="text-iec-navy font-bold">{s.value}</div>
                                     </div>
                                 ))}
@@ -403,11 +394,10 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
                                 </div>
                             )}
 
-                            {/* Comment section */}
                             <div className="bg-white border border-slate-200 rounded-xl p-4">
-                                <label className="block text-gray-200 font-semibold mb-2 text-sm">
+                                <label className="block text-gray-600 font-semibold mb-2 text-sm">
                                     {ACTION_CONFIG[action].commentLabel}
-                                    {ACTION_CONFIG[action].commentReq && <span className="text-red-400 ml-1">*</span>}
+                                    {ACTION_CONFIG[action].commentReq && <span className="text-red-500 ml-1">*</span>}
                                 </label>
                                 <textarea
                                     value={comment}
@@ -419,7 +409,7 @@ export default function WardApprovalQueue({ auth, ward, results = [], filter = '
                             </div>
                         </div>
 
-                        {/* Sticky Footer Buttons */}
+                        {/* Sticky Footer */}
                         <div className="px-6 py-4 border-t border-slate-200 flex-shrink-0 flex gap-3">
                             <button
                                 onClick={submitAction}

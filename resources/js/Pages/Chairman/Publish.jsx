@@ -25,9 +25,9 @@ export default function Publish({ auth, readinessCheck = {}, summary = {} }) {
                           className="text-slate-500 hover:text-iec-navy text-sm inline-flex items-center gap-1 mb-3">
                         Chairman Dashboard
                     </Link>
-                    <h1 className="text-3xl font-bold text-iec-navy">Publish Final Results</h1>
+                    <h1 className="text-3xl font-bold text-iec-navy">Publish Election Results</h1>
                     <p className="text-slate-500 mt-1 text-sm">
-                        Make nationally certified results publicly visible. This action is <strong className="text-red-300">irreversible</strong>.
+                        Nationally certified station results are made public as they are certified. This action closes the election and archives the published set as the final result.
                     </p>
                 </div>
 
@@ -35,8 +35,8 @@ export default function Publish({ auth, readinessCheck = {}, summary = {} }) {
                 <div className="mb-6 p-5 bg-red-500/10 border border-red-500/40 rounded-xl">
                     <h2 className="text-red-300 font-bold mb-1">⚠ Critical Action</h2>
                     <p className="text-red-400 text-sm">
-                        Publishing will make all nationally certified results permanently visible to the public.
-                        Ensure all results have been reviewed and certified before proceeding.
+                        Publishing will mark this election complete. Individual station results are already visible to the public
+                        as soon as they are nationally certified, so this action is only needed to finalize the election record.
                     </p>
                 </div>
 

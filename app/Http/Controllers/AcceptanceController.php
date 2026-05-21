@@ -11,9 +11,30 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * AcceptanceController - Party representatives accept/reject results.
+ *
+ * In the parallel workflow, party reps review results simultaneously with
+ * ward approvers. Their responses are informational and do NOT block
+ * the ward certification pipeline.
  */
 class AcceptanceController extends Controller
 {
+    /**
+     * Statuses where party reps can submit their acceptance.
+     * Covers the full parallel window through national certification.
+     */
+    const ACCEPTABLE_STATUSES = [
+        Result::STATUS_PENDING_WARD,
+        Result::STATUS_WARD_CERTIFIED,
+        Result::STATUS_PENDING_CONSTITUENCY,
+        Result::STATUS_CONSTITUENCY_CERTIFIED,
+        Result::STATUS_PENDING_ADMIN_AREA,
+        Result::STATUS_ADMIN_AREA_CERTIFIED,
+        Result::STATUS_PENDING_NATIONAL,
+        Result::STATUS_NATIONALLY_CERTIFIED,
+        // Legacy: keep for any results still in old state
+        Result::STATUS_PENDING_PARTY_ACCEPTANCE,
+    ];
+
     /**
      * Submit acceptance decision.
      */
@@ -26,6 +47,13 @@ class AcceptanceController extends Controller
         ]);
 
         $result = Result::findOrFail($validated['result_id']);
+
+        // Parallel workflow: party reps can respond during any active stage
+        if (!in_array($result->certification_status, self::ACCEPTABLE_STATUSES)) {
+            return response()->json([
+                'message' => 'This result is not available for party review at this stage.',
+            ], 403);
+        }
 
         $partyRep = $request->user()->partyRepresentatives()
             ->where('election_id', $result->election_id)
@@ -95,16 +123,15 @@ class AcceptanceController extends Controller
             ]
         );
 
-        $this->checkIfAllPartiesResponded($result);
-
         return response()->json([
-            'message'    => 'Acceptance recorded successfully.',
+            'message'    => 'Party response recorded successfully.',
             'acceptance' => $acceptance,
         ], 201);
     }
 
     /**
      * Get pending acceptances for party rep.
+     * Shows results in parallel workflow stages where the party hasn't responded yet.
      */
     public function pending(Request $request): JsonResponse
     {
@@ -116,50 +143,9 @@ class AcceptanceController extends Controller
 
         $results = Result::with(['pollingStation', 'candidateVotes.candidate', 'partyAcceptances'])
             ->whereIn('polling_station_id', $partyRep->pollingStations()->pluck('polling_station_id'))
-            ->where('certification_status', Result::STATUS_PENDING_PARTY_ACCEPTANCE)
+            ->whereIn('certification_status', self::ACCEPTABLE_STATUSES)
             ->get();
 
         return response()->json(['results' => $results]);
-    }
-
-    /**
-     * Advance result to PENDING_WARD when all station-assigned party reps have responded.
-     *
-     * Uses the same station-specific check as ProcessResultSubmission and party.php routes
-     * to ensure consistency in the certification pipeline.
-     */
-    private function checkIfAllPartiesResponded(Result $result): void
-    {
-        // ── Get the parties that actually have reps assigned to THIS station ──
-        // This matches the logic in ProcessResultSubmission::handle() and party.php
-        $assignedPartyIds = DB::table('party_representative_polling_station')
-            ->join('party_representatives', 'party_representatives.id', '=',
-                   'party_representative_polling_station.party_representative_id')
-            ->where('party_representative_polling_station.polling_station_id', $result->polling_station_id)
-            ->where('party_representatives.is_active', true)
-            ->pluck('party_representatives.political_party_id')
-            ->unique();
-
-        $totalAssignedParties = $assignedPartyIds->count();
-
-        // No party reps for this station — advance immediately
-        if ($totalAssignedParties === 0) {
-            if ($result->certification_status === Result::STATUS_PENDING_PARTY_ACCEPTANCE) {
-                $result->forceFill(['certification_status' => Result::STATUS_PENDING_WARD])->save();
-            }
-            return;
-        }
-
-        // Check how many of the assigned parties have submitted a final decision
-        $respondedParties = PartyAcceptance::where('result_id', $result->id)
-            ->where('is_final', true)
-            ->whereIn('political_party_id', $assignedPartyIds)
-            ->count();
-
-        if ($respondedParties >= $totalAssignedParties) {
-            if ($result->certification_status === Result::STATUS_PENDING_PARTY_ACCEPTANCE) {
-                $result->forceFill(['certification_status' => Result::STATUS_PENDING_WARD])->save();
-            }
-        }
     }
 }

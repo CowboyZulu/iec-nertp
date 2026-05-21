@@ -17,19 +17,24 @@ export default function WardDashboard({ auth, ward, pendingResults, statistics }
                     <p className="text-slate-500 text-sm mt-1">
                         Review and certify ward-level election results
                     </p>
+                    {/* <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-iec-pink-500/10 border border-iec-pink-500/20 rounded-lg">
+                        <span className="text-iec-pink-600 text-xs font-semibold">
+                            ⚡ Parallel Workflow — You can certify results immediately. Party representative responses are informational.
+                        </span>
+                    </div> */}
                 </div>
 
                 {/* Alert if there are pending results */}
                 {pendingResults > 0 && (
-                    <div className="mb-6 p-4 bg-amber-500/10 border border-amber-500/40 rounded-xl flex items-center gap-3">
-                        <div className="w-3 h-3 bg-amber-400 rounded-full animate-pulse flex-shrink-0" />
-                        <p className="text-amber-300">
-                            <strong>{pendingResults} result{pendingResults !== 1 ? 's' : ''}</strong> awaiting your certification
+                    <div className="mb-6 p-4 bg-iec-pink-500/10 border border-iec-pink-500/40 rounded-xl flex items-center gap-3">
+                        <div className="w-3 h-3 bg-iec-pink-500 rounded-full animate-pulse flex-shrink-0" />
+                        <p className="text-iec-pink-600">
+                            <strong>{pendingResults} result{pendingResults !== 1 ? 's' : ''}</strong> ready for your ward certification
                         </p>
                         <Link
                             href="/ward/approval-queue"
                             prefetch
-                            className="ml-auto px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-lg"
+                            className="ml-auto px-4 py-2 bg-iec-pink-500 hover:bg-iec-pink-600 text-white text-sm font-bold rounded-lg"
                         >
                             Review Now →
                         </Link>
@@ -39,15 +44,15 @@ export default function WardDashboard({ auth, ward, pendingResults, statistics }
                 {/* Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                     <div className="bg-white rounded-xl p-5 border border-slate-200">
-                        <div className="text-3xl font-bold text-amber-300">{pendingResults || 0}</div>
+                        <div className="text-3xl font-bold text-iec-pink-600">{pendingResults || 0}</div>
                         <div className="text-slate-500 text-sm mt-1">Pending Certification</div>
                     </div>
                     <div className="bg-white rounded-xl p-5 border border-slate-200">
-                        <div className="text-3xl font-bold text-iec-pink-600">{statistics?.approved || 0}</div>
+                        <div className="text-3xl font-bold text-green-600">{statistics?.approved || 0}</div>
                         <div className="text-slate-500 text-sm mt-1">Ward Certified</div>
                     </div>
                     <div className="bg-white rounded-xl p-5 border border-slate-200">
-                        <div className="text-3xl font-bold text-red-300">{statistics?.rejected || 0}</div>
+                        <div className="text-3xl font-bold text-red-500">{statistics?.rejected || 0}</div>
                         <div className="text-slate-500 text-sm mt-1">Rejected / Returned</div>
                     </div>
                     <div className="bg-white rounded-xl p-5 border border-slate-200">
@@ -60,16 +65,16 @@ export default function WardDashboard({ auth, ward, pendingResults, statistics }
                 {statistics?.totalStations > 0 && (
                     <div className="bg-white rounded-xl p-6 border border-slate-200 mb-8">
                         <div className="flex justify-between items-center mb-3">
-                            <span className="text-slate-600 font-semibold">Certification Progress</span>
+                            <span className="text-slate-700 font-semibold">Certification Progress</span>
                             <span className="text-iec-navy font-bold">{progress}%</span>
                         </div>
                         <div className="w-full bg-white rounded-full h-4">
                             <div
-                                className="bg-gradient-to-r from-teal-500 to-teal-400 h-4 rounded-full transition-all duration-700"
+                                className="bg-gradient-to-r from-iec-pink-600 to-iec-pink-400 h-4 rounded-full transition-all duration-700"
                                 style={{ width: `${progress}%` }}
                             />
                         </div>
-                        <p className="text-slate-500 text-xs mt-2">
+                        <p className="text-slate-600 text-xs mt-2">
                             {statistics.approved} of {statistics.totalStations} stations certified at ward level
                         </p>
                     </div>
@@ -82,14 +87,14 @@ export default function WardDashboard({ auth, ward, pendingResults, statistics }
                         <Link
                             href="/ward/approval-queue?filter=pending"
                             prefetch
-                            className="group p-5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-all"
+                            className="group p-5 bg-iec-pink-500/10 hover:bg-iec-pink-500/20 border border-iec-pink-500/30 rounded-xl transition-all"
                         >
                             <div className="flex items-center gap-3 mb-2">
-                                <div className="w-8 h-8 bg-amber-500/20 rounded-lg flex items-center justify-center text-amber-400">⏳</div>
+                                <div className="w-8 h-8 bg-iec-pink-500/20 rounded-lg flex items-center justify-center text-iec-pink-600">⏳</div>
                                 <div className="text-lg font-bold text-iec-navy">Approval Queue</div>
                             </div>
-                            <div className="text-amber-300 text-sm">
-                                {pendingResults > 0 ? `${pendingResults} results pending certification` : 'No results pending'}
+                            <div className="text-iec-pink-600 text-sm">
+                                {pendingResults > 0 ? `${pendingResults} result${pendingResults !== 1 ? 's' : ''} ready for certification` : 'No results pending'}
                             </div>
                         </Link>
 

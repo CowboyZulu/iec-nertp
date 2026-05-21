@@ -18,10 +18,8 @@ Route::middleware(['auth', 'role:party-representative'])
     ->name('party.')
     ->group(function () {
 
-    // ── Helper: active election ───────────────────────────────────────────────
     $getActiveElection = fn() => Election::where('status', 'active')->latest()->first();
 
-    // ── Helper: get the current rep's record ──────────────────────────────────
     $getRep = function () {
         return PartyRepresentative::where('user_id', Auth::id())
             ->with(['politicalParty', 'pollingStations'])
@@ -33,7 +31,6 @@ Route::middleware(['auth', 'role:party-representative'])
         $rep            = $getRep();
         $activeElection = $getActiveElection();
 
-        // Guard: no rep record OR the linked party has been soft-deleted
         if (!$rep || !$rep->politicalParty) {
             return Inertia::render('Party/Dashboard', [
                 'auth'             => ['user' => Auth::user()],
@@ -73,14 +70,12 @@ Route::middleware(['auth', 'role:party-representative'])
             ]);
         }
 
-        $cacheKey = "party_dashboard_{$rep->id}_{$activeElection->id}";
+        $cacheKey      = "party_dashboard_{$rep->id}_{$activeElection->id}";
         $dashboardData = Cache::remember($cacheKey, 30, function () use ($rep, $activeElection, $stationIds) {
+            // Results available for party review (parallel workflow — all active stages)
             $resultIds = Result::whereIn('polling_station_id', $stationIds)
                 ->where('election_id', $activeElection->id)
-                ->whereNotIn('certification_status', [
-                    Result::STATUS_SUBMITTED,
-                    Result::STATUS_REJECTED,
-                ])
+                ->whereIn('certification_status', Result::PARTY_ACCEPTABLE_STATUSES)
                 ->pluck('id');
 
             $decidedResultIds = PartyAcceptance::where('political_party_id', $rep->political_party_id)
@@ -98,13 +93,13 @@ Route::middleware(['auth', 'role:party-representative'])
                 ->pluck('count', 'status');
 
             return [
-                'pendingAcceptance'       => $pendingAcceptance,
-                'acceptanceCounts'        => $acceptanceCounts,
+                'pendingAcceptance' => $pendingAcceptance,
+                'acceptanceCounts'  => $acceptanceCounts,
             ];
         });
 
         $pendingAcceptance = $dashboardData['pendingAcceptance'];
-        $acceptanceCounts = $dashboardData['acceptanceCounts'];
+        $acceptanceCounts  = $dashboardData['acceptanceCounts'];
 
         return Inertia::render('Party/Dashboard', [
             'auth'             => ['user' => Auth::user()],
@@ -148,7 +143,7 @@ Route::middleware(['auth', 'role:party-representative'])
         $results = $activeElection
             ? Result::whereIn('polling_station_id', $stationIds)
                 ->where('election_id', $activeElection->id)
-                ->whereNotIn('certification_status', [Result::STATUS_REJECTED])
+                ->whereNotIn('certification_status', [Result::STATUS_SUBMITTED, Result::STATUS_REJECTED])
                 ->get()
                 ->keyBy('polling_station_id')
             : collect();
@@ -236,12 +231,10 @@ Route::middleware(['auth', 'role:party-representative'])
             ->where('is_final', true)
             ->pluck('result_id');
 
+        // Parallel workflow: show results in all active stages (not just pending_party_acceptance)
         $results = Result::whereIn('polling_station_id', $stationIds)
             ->where('election_id', $activeElection->id)
-            ->whereNotIn('certification_status', [
-                Result::STATUS_SUBMITTED,
-                Result::STATUS_REJECTED,
-            ])
+            ->whereIn('certification_status', Result::PARTY_ACCEPTABLE_STATUSES)
             ->whereNotIn('id', $decidedResultIds)
             ->with([
                 'pollingStation',
@@ -299,7 +292,6 @@ Route::middleware(['auth', 'role:party-representative'])
 
         if (!$rep || !$rep->politicalParty) abort(403, 'No party representative record found.');
 
-        // Ensure this result belongs to the active election
         if (!$activeElection || $result->election_id !== $activeElection->id) {
             return redirect()->route('party.pending-acceptance')
                 ->with('error', 'This result is not part of the active election.');
@@ -310,8 +302,9 @@ Route::middleware(['auth', 'role:party-representative'])
             abort(403, 'You are not assigned to this polling station.');
         }
 
-        if ($result->certification_status === Result::STATUS_SUBMITTED && $result->rejection_count === 0) {
-            return back()->with('error', 'Result is not yet available for review.');
+        // Parallel workflow: result must be in an acceptable stage
+        if (!in_array($result->certification_status, Result::PARTY_ACCEPTABLE_STATUSES)) {
+            return back()->with('error', 'Result is not yet available for party review.');
         }
 
         $result->load([
@@ -396,6 +389,11 @@ Route::middleware(['auth', 'role:party-representative'])
             abort(403, 'You are not assigned to this polling station.');
         }
 
+        // Parallel workflow: allow responses for results in any active stage
+        if (!in_array($result->certification_status, Result::PARTY_ACCEPTABLE_STATUSES)) {
+            return back()->withErrors(['error' => 'This result is not available for review at this stage.']);
+        }
+
         $existing = PartyAcceptance::where('result_id', $result->id)
             ->where('political_party_id', $rep->political_party_id)->first();
 
@@ -421,33 +419,6 @@ Route::middleware(['auth', 'role:party-representative'])
             extra: ['election_id' => $result->election_id, 'result_id' => $result->id,
                     'status' => $request->status, 'outcome' => 'success']
         );
-
-        // Advance to pending_ward when all assigned party reps for this station have responded
-        $assignedPartyIds = DB::table('party_representative_polling_station')
-            ->join('party_representatives', 'party_representatives.id', '=',
-                'party_representative_polling_station.party_representative_id')
-            ->where('party_representative_polling_station.polling_station_id', $result->polling_station_id)
-            ->where('party_representatives.is_active', true)
-            ->pluck('party_representatives.political_party_id')
-            ->unique();
-
-        $totalAssignedParties = $assignedPartyIds->count();
-        $respondedParties     = PartyAcceptance::where('result_id', $result->id)
-            ->where('is_final', true)
-            ->whereIn('political_party_id', $assignedPartyIds)
-            ->count();
-
-        if ($totalAssignedParties === 0 || $respondedParties >= $totalAssignedParties) {
-            if ($result->certification_status === Result::STATUS_PENDING_PARTY_ACCEPTANCE) {
-                $result->update(['certification_status' => Result::STATUS_PENDING_WARD]);
-                AuditLog::record(
-                    action: 'result.advanced_to_ward', event: 'updated',
-                    module: 'PartyAcceptance', auditable: $result,
-                    extra: ['election_id' => $result->election_id, 'outcome' => 'success',
-                            'parties_responded' => $respondedParties, 'parties_assigned' => $totalAssignedParties]
-                );
-            }
-        }
 
         $label = match($request->status) {
             'accepted'                  => 'accepted',

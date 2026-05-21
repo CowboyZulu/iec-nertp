@@ -34,11 +34,12 @@ class ResultsSummaryController extends Controller
         }
 
         if (!$electionModel) {
-            // Default: certified first, then latest active
-            $electionModel = Election::where('status', 'certified')
+            // Default: prefer the currently active/in-progress election over an older certified one,
+            // so public viewers see live chairman certifications as they happen.
+            $electionModel = Election::whereIn('status', ['active', 'certifying', 'results_pending'])
                 ->latest('start_date')
                 ->first()
-                ?? Election::whereIn('status', ['active', 'certifying', 'results_pending'])
+                ?? Election::where('status', 'certified')
                     ->latest('start_date')
                     ->first();
         }
